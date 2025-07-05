@@ -56,10 +56,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/benhsu/cogvrs"
-Repository = "https://github.com/benhsu/cogvrs.git"
+Homepage = "https://github.com/tianzhao9527/cogvrs"
+Repository = "https://github.com/tianzhao9527/cogvrs.git"
 Documentation = "https://cogvrs.readthedocs.io/"
-"Bug Tracker" = "https://github.com/benhsu/cogvrs/issues"
+"Bug Tracker" = "https://github.com/tianzhao9527/cogvrs/issues"
 
 [project.scripts]
 cogvrs = "cogvrs_core.main:main"

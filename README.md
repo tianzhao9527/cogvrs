@@ -20,7 +20,7 @@ This is a scientific-philosophical experiment project aimed at verifying the sim
 
 ```bash
 # 1. Clone the project
-git clone https://github.com/benhsu/cogvrs.git
+git clone https://github.com/tianzhao9527/cogvrs.git
 cd cogvrs
 
 # 2. Setup Python environment
@@ -168,10 +168,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔗 Related Links
 
-- [Project Homepage](https://github.com/benhsu/cogvrs)
+- [Project Homepage](https://github.com/tianzhao9527/cogvrs)
 - [Documentation Site](https://cogvrs.readthedocs.io/)
-- [Issue Tracking](https://github.com/benhsu/cogvrs/issues)
-- [Discussion Community](https://github.com/benhsu/cogvrs/discussions)
+- [Issue Tracking](https://github.com/tianzhao9527/cogvrs/issues)
+- [Discussion Community](https://github.com/tianzhao9527/cogvrs/discussions)
 - [Official Website](https://cogvrs.com)
 
 ## 🎯 Milestones
@@ -219,7 +219,7 @@ Ready to explore the cognitive universe?
 
 ```bash
 # Quick setup
-git clone https://github.com/benhsu/cogvrs.git
+git clone https://github.com/tianzhao9527/cogvrs.git
 cd cogvrs
 ./setup_environment.sh
 source cogvrs_env/bin/activate

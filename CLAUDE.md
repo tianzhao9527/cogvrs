@@ -36,7 +36,7 @@ This is a scientific-philosophical experiment project that explores "the feasibi
 - **New Name**: Cogvrs (Cognitive Universe Simulation Platform)
 - **Author**: Ben Hsu & Claude
 - **Domain**: cogvrs.com
-- **Repository**: https://github.com/benhsu/cogvrs
+- **Repository**: https://github.com/tianzhao9527/cogvrs
 
 ## Next Session Reminders
 Continue discussion on:

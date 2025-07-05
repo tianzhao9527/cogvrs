@@ -23,8 +23,8 @@ PROJECT_INFO = {
     "author": __author__,
     "license": "MIT",
     "python_requires": ">=3.9",
-    "homepage": "https://github.com/benhsu/cogvrs",
-    "repository": "https://github.com/benhsu/cogvrs.git",
+    "homepage": "https://github.com/tianzhao9527/cogvrs",
+    "repository": "https://github.com/tianzhao9527/cogvrs.git",
     "documentation": "https://cogvrs.readthedocs.io/",
     "domain": "cogvrs.com",
 }
