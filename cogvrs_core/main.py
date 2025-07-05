@@ -19,12 +19,12 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from configs.settings import load_config, DEFAULT_CONFIG
-from core.physics_engine import PhysicsEngine
-from core.world import World2D
-from core.time_manager import TimeManager
-from visualization.gui import DigitalUniverseGUI
-from experiments.basic_test import BasicExperiment
+from .configs.settings import load_config, DEFAULT_CONFIG
+from .core.physics_engine import PhysicsEngine
+from .core.world import World2D
+from .core.time_manager import TimeManager
+from .visualization.gui import CogvrsGUI
+from .experiments.basic_test import BasicExperiment
 
 
 def setup_logging(level="INFO"):
@@ -105,7 +105,7 @@ def run_gui_mode(config, args):
     
     try:
         # 创建并启动GUI
-        gui = DigitalUniverseGUI(config)
+        gui = CogvrsGUI(config)
         gui.run()
     except Exception as e:
         logger.error(f"GUI启动失败: {e}")
