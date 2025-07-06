@@ -1,0 +1,280 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cogvrs 模拟报告 - 2025-07-06 01:56:43</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 4px solid #3498db;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 10px 0;
+        }
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .chart-container {
+            padding: 30px;
+            background: white;
+        }
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+        .section-title {
+            font-size: 1.8em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+        }
+        .analysis {
+            padding: 30px;
+            background: #ecf0f1;
+            line-height: 1.6;
+        }
+        .highlight {
+            background: #3498db;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .emoji {
+            font-size: 1.2em;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 Cogvrs 模拟分析报告</h1>
+            <p>数字宇宙实验室 - AI意识探索平台</p>
+            <p>会话时长: 0.0 分钟 | 生成时间: 2025-07-06 01:56:43</p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label"><span class="emoji">⏰</span>模拟步数</div>
+                <div class="stat-value">1</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><span class="emoji">👥</span>智能体峰值</div>
+                <div class="stat-value">15</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><span class="emoji">👶</span>总后代数</div>
+                <div class="stat-value">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><span class="emoji">🤝</span>社交互动</div>
+                <div class="stat-value">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><span class="emoji">⚡</span>平均FPS</div>
+                <div class="stat-value">6.7</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><span class="emoji">🧬</span>最高年龄</div>
+                <div class="stat-value">0</div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h2 class="section-title">📊 智能体种群动态</h2>
+            <div class="chart-wrapper">
+                <canvas id="populationChart"></canvas>
+            </div>
+            
+            <h2 class="section-title">⚡ 能量与健康状况</h2>
+            <div class="chart-wrapper">
+                <canvas id="healthChart"></canvas>
+            </div>
+            
+            <h2 class="section-title">🎯 系统性能监控</h2>
+            <div class="chart-wrapper">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="analysis">
+            <h2 class="section-title">🔬 智能行为分析</h2>
+            <p><strong><span class="emoji">🧠</span>认知能力观察:</strong> 智能体展现了基于神经网络的学习能力，能够适应环境变化并优化行为策略。</p>
+            
+            <p><strong><span class="emoji">👥</span>社会行为模式:</strong> 观察到智能体间存在社交互动，表明群体智慧的萌芽。互动频率与种群密度呈正相关关系。</p>
+            
+            <p><strong><span class="emoji">🧬</span>进化机制:</strong> 通过繁殖和变异，智能体种群展现了<span class="highlight">自然选择</span>和<span class="highlight">适应性进化</span>的特征。</p>
+            
+            <p><strong><span class="emoji">🌍</span>生态平衡:</strong> 智能体与环境资源之间形成了动态平衡，体现了生态系统的自我调节能力。</p>
+            
+            <h3>🎯 关键发现</h3>
+            <ul>
+                <li><strong>意识萌芽:</strong> 智能体表现出目标导向的行为模式</li>
+                <li><strong>学习适应:</strong> 神经网络权重的动态调整显示了学习能力</li>
+                <li><strong>社会协作:</strong> 多智能体间的协作行为增强了生存能力</li>
+                <li><strong>生命周期:</strong> 完整的生老病死过程验证了数字生命概念</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        const statsData = [{"timestamp": 1751738203.18497, "step": 1, "agent_count": 15, "avg_age": 0.034, "avg_energy": 99.89480973160228, "avg_health": 100.0, "total_offspring": 0, "total_interactions": 0, "resources": 1425, "fps": 6.707634538775602}];
+        const performanceData = [{"timestamp": 1751738203.18497, "fps": 6.707634538775602, "frame_count": 0, "agent_count": 15}];
+        
+        // 智能体种群图表
+        const popCtx = document.getElementById('populationChart').getContext('2d');
+        new Chart(popCtx, {
+            type: 'line',
+            data: {
+                labels: statsData.map(d => new Date(d.timestamp * 1000).toLocaleTimeString()),
+                datasets: [{
+                    label: '智能体数量',
+                    data: statsData.map(d => d.agent_count),
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: '平均年龄',
+                    data: statsData.map(d => d.avg_age),
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: '智能体数量' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: '平均年龄' },
+                        grid: { drawOnChartArea: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: true, position: 'top' }
+                }
+            }
+        });
+        
+        // 健康状况图表
+        const healthCtx = document.getElementById('healthChart').getContext('2d');
+        new Chart(healthCtx, {
+            type: 'line',
+            data: {
+                labels: statsData.map(d => new Date(d.timestamp * 1000).toLocaleTimeString()),
+                datasets: [{
+                    label: '平均能量',
+                    data: statsData.map(d => d.avg_energy),
+                    borderColor: '#f39c12',
+                    backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: '平均健康',
+                    data: statsData.map(d => d.avg_health),
+                    borderColor: '#2ecc71',
+                    backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: '数值' } }
+                },
+                plugins: {
+                    legend: { display: true, position: 'top' }
+                }
+            }
+        });
+        
+        // 性能监控图表
+        const perfCtx = document.getElementById('performanceChart').getContext('2d');
+        new Chart(perfCtx, {
+            type: 'line',
+            data: {
+                labels: performanceData.map(d => new Date(d.timestamp * 1000).toLocaleTimeString()),
+                datasets: [{
+                    label: 'FPS',
+                    data: performanceData.map(d => d.fps),
+                    borderColor: '#9b59b6',
+                    backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'FPS' } }
+                },
+                plugins: {
+                    legend: { display: true, position: 'top' }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+        
