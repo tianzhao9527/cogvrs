@@ -80,7 +80,7 @@ class World2D:
         self.config = config
         self.size = config.get('size', (100, 100))
         self.resource_density = config.get('resource_density', 0.1)
-        self.max_agents = config.get('max_agents', 50)
+        self.max_agents = config.get('max_agents', 200)  # 提高默认最大智能体数量
         
         # 初始化世界网格
         self.width, self.height = self.size

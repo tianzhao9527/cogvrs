@@ -382,25 +382,26 @@ class SimpleAgent(PhysicsObject):
     
     def _execute_reproduce(self, action: Action, nearby_agents: List) -> Tuple[bool, float]:
         """执行繁殖"""
+        # 降低繁殖门槛，从80降低到50
         if (action.target_agent is None or 
             action.target_agent not in nearby_agents or
-            self.energy < 80):
+            self.energy < 50):
             return False, -0.3
         
         partner = action.target_agent
         
-        # 检查伙伴是否同意繁殖
-        if (hasattr(partner, 'energy') and partner.energy > 80 and
+        # 检查伙伴是否同意繁殖（降低伙伴要求从80到50）
+        if (hasattr(partner, 'energy') and partner.energy > 50 and
             hasattr(partner, 'behavior_system') and
             partner.behavior_system.motivations['reproduction'].is_active()):
             
             # 繁殖成功！
             self.offspring_count += 1
             
-            # 繁殖消耗大量能量
-            self.energy -= 40
+            # 降低繁殖能量消耗，从40/30降低到25/20
+            self.energy -= 25
             if hasattr(partner, 'energy'):
-                partner.energy -= 30
+                partner.energy -= 20
             
             # 存储繁殖记忆
             self.memory.store_experience(
@@ -580,11 +581,12 @@ class SimpleAgent(PhysicsObject):
             'behavior': self.behavior_system.config.copy()
         }
         
-        # 创建子代智能体
-        child = SimpleAgent(child_config, Vector2D(
-            self.position.x + np.random.uniform(-2, 2),
-            self.position.y + np.random.uniform(-2, 2)
-        ))
+        # 创建子代智能体，确保位置在世界边界内
+        world_width, world_height = child_config['world_size']
+        child_x = np.clip(self.position.x + np.random.uniform(-2, 2), 0, world_width - 1)
+        child_y = np.clip(self.position.y + np.random.uniform(-2, 2), 0, world_height - 1)
+        
+        child = SimpleAgent(child_config, Vector2D(child_x, child_y))
         
         # 继承大脑（有变异）
         child.brain = self.brain.clone()
@@ -663,3 +665,13 @@ class SimpleAgent(PhysicsObject):
         self.resources_consumed = stats['resources_consumed']
         self.offspring_count = stats['offspring_count']
         self.social_interactions = stats['social_interactions']
+    
+    def __hash__(self):
+        """使智能体可哈希，基于唯一的agent_id"""
+        return hash(self.agent_id)
+    
+    def __eq__(self, other):
+        """基于agent_id进行相等性比较"""
+        if not isinstance(other, SimpleAgent):
+            return False
+        return self.agent_id == other.agent_id

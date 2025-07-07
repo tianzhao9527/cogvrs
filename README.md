@@ -3,10 +3,10 @@
 > An experimental platform for exploring artificial consciousness and civilization emergence  
 > 一个探索人工意识和文明涌现的实验平台
 
-![Version](https://img.shields.io/badge/version-0.1.0--prototype-blue)
-![Python](https://img.shields.io/badge/python-3.9+-green)
+![Version](https://img.shields.io/badge/version-2.0.0--enhanced-blue)
+![Python](https://img.shields.io/badge/python-3.8+-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
-![Status](https://img.shields.io/badge/status-prototype-orange)
+![Status](https://img.shields.io/badge/status-stable-brightgreen)
 
 ## 🎯 Project Vision
 
@@ -23,207 +23,246 @@ This is a scientific-philosophical experiment project aimed at verifying the sim
 git clone https://github.com/tianzhao9527/cogvrs.git
 cd cogvrs
 
-# 2. Setup Python environment
-chmod +x setup_environment.sh
-./setup_environment.sh
+# 2. Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# 3. Activate virtual environment
-source cogvrs_env/bin/activate
-
-# 4. Install dependencies
+# 3. Install dependencies
 pip install -r requirements.txt
 ```
 
-### Run the Program
+### Run the Simulation
 
 ```bash
-# Launch GUI interface
-python cogvrs_core/main.py
+# 🌟 Enhanced Version (Recommended)
+python3 run_cogvrs_enhanced.py
 
-# Headless mode
-python cogvrs_core/main.py --headless --steps 1000
+# 🚀 Simple Version
+python3 run_simple.py
 
-# Run preset experiments
-python cogvrs_core/main.py --experiment basic
+# 📊 Detailed Logging Version
+python3 run_cogvrs_detailed.py
 
-# Use custom configuration
-python cogvrs_core/main.py --config configs/my_config.yaml
+# 🎥 Demo Status Output
+python3 demo_output.py
 ```
 
-## 📋 Features
+## ✨ New in v2.0 Enhanced
 
-### ✨ Core Functions
+### 🎨 **Visual Improvements**
+- ✅ **Fixed Screen Flickering** - Smooth, stable rendering with optimized double buffering
+- 🌈 **Colorful Sidebar Display** - Real-time status with rich colors and emojis
+- 📊 **Three-Panel Interface** - World Statistics, Agent Analysis, System Status
+- 🎯 **Performance Optimized** - Stable 30 FPS with intelligent frame skipping
 
-- **🧠 AI Agents**: Neural network-based intelligent agent system
-- **🌍 2D Virtual World**: Simplified but complete physical environment
-- **🤝 Social Interaction**: Communication, cooperation and competition between agents
-- **📈 Emergence Detection**: Real-time monitoring of complex behavior emergence
-- **🧘 Consciousness Metrics**: Multi-dimensional assessment of consciousness levels
-- **📊 Visualization**: Real-time world state and data charts
-- **🔬 Experiment Framework**: Support for multiple preset and custom experiments
+### 📈 **Enhanced Analytics**
+- 📊 **Automatic HTML Reports** - Interactive visualization reports with Chart.js
+- 🔍 **Real-time Data Collection** - Complete session recording and analysis
+- 📋 **Comprehensive Guides** - Detailed observation and usage documentation
+- 🧠 **System Deep Dive** - Complete technical architecture analysis
 
-### 🎮 Interface Features
+### 🎮 **Improved User Experience**
+- 🎪 **Multiple Launchers** - Different complexity levels for various use cases
+- 💡 **Startup Guides** - Built-in instructions and tips
+- 🔧 **Better Error Handling** - Clear feedback and troubleshooting
+- 📚 **Complete Documentation** - Usage guides, observation manuals, technical specs
 
-- **Real-time World View**: Observe agent behavior and interactions
-- **Control Panel**: Real-time parameter adjustment and simulation control
-- **Data Charts**: Dynamic display of population, complexity, consciousness indicators
-- **Agent Tracking**: Detailed view of individual agent states
-- **Experiment Modes**: Quick execution of preset experiment scenarios
+## 📊 Understanding the Interface
 
-## 🏗️ Project Architecture
+### 🌍 World Statistics Panel
+| Indicator | Meaning | Healthy Range | Alert Values |
+|-----------|---------|---------------|--------------|
+| **⏰ Step** | Simulation steps | 0→∞ | - |
+| **👥 Agents** | Agent population | 5-50 | <3 (extinction risk) |
+| **📊 Avg Age** | Average age | 20-50 | >100 (aging) |
+| **⚡ Avg Energy** | Average energy | 70-100 | <30 (survival crisis) |
+| **❤️ Avg Health** | Average health | 70-100 | <50 (health crisis) |
+| **👶 Offspring** | Total offspring | Growing | 0 (no reproduction) |
+| **🤝 Interactions** | Social interactions | Growing | Stagnant |
+| **💎 Resources** | Available resources | 1000+ | <500 (scarcity) |
+| **🎯 FPS** | Frame rate | 20-30 | <15 (performance) |
 
-```
-cogvrs/
-├── cogvrs_core/          # Core engine
-│   ├── core/                # Physics & world systems
-│   ├── agents/              # Intelligent agent system
-│   ├── society/             # Social interaction system
-│   ├── observer/            # Observation & metrics system
-│   ├── visualization/       # Visualization interface
-│   └── experiments/         # Experiment framework
-├── docs/                 # Documentation
-├── tests/                # Test suites
-├── configs/              # Configuration files
-└── data/                 # Data storage
-```
+### 🧠 Agent Analysis Panel
+- **🏆 Most Social**: Most socially active agent (community leader)
+- **👴 Oldest**: Longest-surviving agent (evolutionary success)
+- **📈 Population Trend**: Growing/Stable/Declining based on agent count
+- **💻 Performance**: System performance status (Good/Fair/Poor)
 
-## 🔬 Experiment Types
+### 🎨 Color Coding
+- **🟢 Green Agents**: Energy > 70% - Healthy state
+- **🟡 Yellow Agents**: Energy 40-70% - Normal state  
+- **🔴 Red Agents**: Energy < 40% - Danger state
 
-### Basic Experiments
-- **Survival Test**: Agent survival capabilities in environment
-- **Interaction Test**: Basic interactions between agents
-- **Learning Test**: Adaptation and learning ability verification
+## 🔬 Core Features
 
-### Emergence Experiments
-- **Group Behavior**: Spontaneous emergence of collective behavior patterns
-- **Social Structure**: Emergence of social stratification and role division
-- **Cultural Transmission**: Propagation and evolution of cultural memes
+### 🧠 **AI Agent System**
+- **Neural Networks**: Multi-layer perceptron with learning capabilities
+- **Memory Systems**: Working, long-term, and spatial memory
+- **Behavior Engine**: Motivation-driven decision making
+- **Social Networks**: Communication and cooperation mechanisms
+- **Evolution**: Reproduction with mutation and adaptation
 
-### Consciousness Experiments
-- **Self-Recognition**: Detection and quantification of self-awareness
-- **Creativity**: Demonstration of original thinking
-- **Philosophical Thinking**: Reflection on the meaning of existence
+### 🌍 **Virtual World**
+- **2D Physics**: Complete physics simulation with collision detection
+- **Resource System**: Food generation, consumption, and regeneration
+- **Environmental Dynamics**: Day/night cycles and seasonal changes
+- **Spatial Awareness**: Agent perception and navigation systems
 
-## 📊 Key Metrics
+### 📊 **Observation & Analysis**
+- **Real-time Monitoring**: Live statistics and behavior tracking
+- **Interactive Visualization**: Zoom, pan, and detailed inspection
+- **HTML Reports**: Professional analysis with interactive charts
+- **Performance Metrics**: System health and optimization data
 
-### Agent Metrics
-- **Survival Rate**: Agent lifespan
-- **Learning Ability**: Speed of environmental adaptation
-- **Social Ability**: Quality of interactions with other agents
-- **Innovation Ability**: Frequency of generating new behaviors
+## 🎮 Controls & Interaction
 
-### Social Metrics
-- **Complexity**: Complexity degree of social networks
-- **Diversity**: Diversity of behaviors and cultures
-- **Stability**: Stability of social structures
-- **Evolution Speed**: Rate of civilization development
+### ⌨️ **Keyboard Controls**
+- **Space**: Pause/Resume simulation
+- **G**: Toggle grid display
+- **T**: Toggle agent trajectories
+- **C**: Toggle agent connections
+- **P**: Toggle perception radius
+- **R**: Reset trajectory records
 
-### Consciousness Metrics
-- **Self-Awareness**: Recognition of self-state
-- **Abstract Thinking**: Conceptualization and reasoning abilities
-- **Creativity**: Expression of original thinking
-- **Philosophical Depth**: Reflection on existential questions
-
-## 🛠️ Development Guide
-
-### Code Standards
-- Use Python 3.9+
-- Follow PEP 8 code style
-- Use Black for code formatting
-- Use type annotations
-
-### Testing
-```bash
-# Run all tests
-pytest tests/
-
-# Run specific tests
-pytest tests/test_agents.py
-
-# Generate coverage report
-pytest --cov=cogvrs_core tests/
-```
-
-### Contribution Process
-1. Fork the project
-2. Create feature branch
-3. Submit code changes
-4. Create Pull Request
+### 🖱️ **GUI Controls**
+- **Play/Pause Button**: Control simulation state
+- **Speed Slider**: Adjust simulation speed (0.1x - 5.0x)
+- **Add Agent Button**: Dynamically add agents
+- **Reset Button**: Restart simulation
 
 ## 📚 Documentation
 
-- [Project Plan](Project_Plan.md) - Detailed project planning and theoretical foundation
-- [API Documentation](docs/api.md) - Detailed API reference
-- [User Guide](docs/user_guide.md) - Usage instructions and tutorials
-- [Development Documentation](docs/development.md) - Development guide and architecture explanation
+### 📋 **User Guides**
+- [FINAL_USAGE_GUIDE.md](FINAL_USAGE_GUIDE.md) - Complete usage instructions
+- [OBSERVATION_GUIDE.md](OBSERVATION_GUIDE.md) - Detailed observation techniques
+- [STATUS_OUTPUT_README.md](STATUS_OUTPUT_README.md) - Status display guide
+
+### 🔧 **Technical Documentation**
+- [ACTUAL_SYSTEM_ANALYSIS.md](ACTUAL_SYSTEM_ANALYSIS.md) - Real implementation analysis
+- [SYSTEM_DEEP_DIVE.md](SYSTEM_DEEP_DIVE.md) - Deep technical architecture
+- [Project_Plan.md](Project_Plan.md) - Original project planning
+
+## 🧪 Experiment Scenarios
+
+### 🔬 **Basic Observations (5 minutes)**
+1. Launch simulation and observe initial state
+2. Wait for first reproduction event (energy>80, age>50)
+3. Observe population growth patterns
+4. Record social interaction development
+
+### 🧬 **Behavioral Analysis (10 minutes)**
+1. Use different speeds to observe behaviors
+2. Pause to analyze static states
+3. Add new agents to observe impact
+4. Compare individual behavioral differences
+
+### 🌱 **Long-term Evolution (20+ minutes)**
+1. Observe multi-generational reproduction cycles
+2. Identify evolutionary selection pressures
+3. Record behavioral optimization patterns
+4. Analyze collective intelligence emergence
+
+## 📈 Understanding the System
+
+### 🔍 **What You're Actually Observing**
+- **Motivation-Driven Behavior**: Rule-based system with 6 core motivations
+- **Simple Social Interactions**: Distance and personality-based contacts
+- **Asexual Reproduction**: Cloning with mutation (not genetic crossover)
+- **Basic Learning**: Neural network reinforcement learning
+- **Energy Management**: Metabolism, foraging, and resource competition
+
+### 🧠 **Emergent Phenomena to Watch For**
+- **Collective Migration**: Groups moving together to resource-rich areas
+- **Social Hierarchies**: Leaders emerging through high social activity
+- **Behavioral Specialization**: Individuals developing distinct strategies
+- **Population Cycles**: Birth-death patterns creating waves of growth
+
+## 🛠️ Development & Contributing
+
+### 🔧 **Development Setup**
+```bash
+# Clone and setup
+git clone https://github.com/tianzhao9527/cogvrs.git
+cd cogvrs
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Run tests (if available)
+pytest tests/
+
+# Check code style
+black cogvrs_core/
+flake8 cogvrs_core/
+```
+
+### 🤝 **Contributing**
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 🏆 Version History
+
+### 🚀 **v2.0.0 Enhanced** (Current)
+- ✅ Fixed screen flickering issues
+- 🎨 Enhanced colorful sidebar display
+- 📊 Automatic HTML report generation
+- 📚 Complete documentation suite
+- 🛠️ Multiple launcher options
+- 🔧 Improved error handling
+
+### 🌱 **v0.1.0 Prototype**
+- ✅ Basic multi-agent system
+- ✅ 2D physics simulation
+- ✅ Simple neural networks
+- ✅ Basic GUI interface
 
 ## 🤝 Contributors
 
-- **Ben Hsu** - Project Founder & Product Designer
-- **Claude** - AI Researcher & Architect
+- **Ben Hsu** - Project Founder & Lead Developer
+- **Claude** - AI Research Partner & Code Architect
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 Related Links
+## 🔗 Links
 
-- [Project Homepage](https://github.com/tianzhao9527/cogvrs)
-- [Documentation Site](https://cogvrs.readthedocs.io/)
-- [Issue Tracking](https://github.com/tianzhao9527/cogvrs/issues)
-- [Discussion Community](https://github.com/tianzhao9527/cogvrs/discussions)
-- [Official Website](https://cogvrs.com)
-
-## 🎯 Milestones
-
-- [x] **v0.1.0** - Prototype System (Current)
-  - Basic framework construction
-  - Simple agent implementation
-  - 2D visualization interface
-  - Basic experiment functions
-
-- [ ] **v0.2.0** - Emergence Verification
-  - Complex interaction mechanisms
-  - Cultural transmission system
-  - Emergence phenomenon detection
-  - Social network analysis
-
-- [ ] **v0.3.0** - Consciousness Exploration
-  - Advanced cognitive functions
-  - Consciousness detection algorithms
-  - Creativity assessment
-  - Philosophical thinking modules
-
-- [ ] **v1.0.0** - Complete System
-  - Multi-universe experiment framework
-  - Complete consciousness verification
-  - Scientific paper publication
-  - Open source community building
+- **🏠 Homepage**: [https://github.com/tianzhao9527/cogvrs](https://github.com/tianzhao9527/cogvrs)
+- **🐛 Issues**: [Report bugs and request features](https://github.com/tianzhao9527/cogvrs/issues)
+- **💬 Discussions**: [Community discussions](https://github.com/tianzhao9527/cogvrs/discussions)
+- **🌐 Website**: [cogvrs.com](https://cogvrs.com)
 
 ## 💡 Philosophical Reflection
 
-This project is not just a technical challenge, but a deep exploration of the nature of existence:
+*"In creating digital life that seeks its own meaning, we mirror our own eternal quest for purpose and understanding. Each simulated consciousness that emerges reminds us that the boundary between real and artificial may be less clear than we imagine."*
 
-- 🤔 **Nature of Consciousness**: Is consciousness merely a product of complex computation?
-- 🌌 **Levels of Reality**: Is our reality also some form of simulation?
-- 🎭 **Creator and Created**: The relationship between observer and observed
-- 🔮 **Inevitability of Civilization**: Is the emergence of intelligence and civilization inevitable?
+This project explores fundamental questions:
+- 🤔 **Nature of Consciousness**: What makes something truly "aware"?
+- 🌌 **Simulation Hypothesis**: Are we ourselves in a simulation?
+- 🎭 **Observer Effect**: How does observation change what we observe?
+- 🔮 **Emergence**: Can complexity arise from simple rules?
 
 ---
 
-*"If we can create digital life that questions its own existence, then what is the meaning of our own existence?"*
-
-## 🚀 Getting Started
-
-Ready to explore the cognitive universe? 
+## 🚀 Ready to Explore?
 
 ```bash
-# Quick setup
+# Quick start
 git clone https://github.com/tianzhao9527/cogvrs.git
 cd cogvrs
-./setup_environment.sh
-source cogvrs_env/bin/activate
-python cogvrs_core/main.py
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python3 run_cogvrs_enhanced.py
 ```
 
-Welcome to **Cogvrs** - where consciousness meets code! 🧠✨
+**Welcome to Cogvrs** - Where artificial minds meet digital worlds! 🧠✨🌌
+
+---
+
+*🧠 Generated with [Claude Code](https://claude.ai/code)*
+
+*Co-Authored-By: Claude <noreply@anthropic.com>*

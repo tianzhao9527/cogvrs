@@ -18,7 +18,7 @@ DEFAULT_CONFIG = {
     # 世界配置
     "world": {
         "size": (100, 100),           # 世界尺寸 (宽, 高)
-        "max_agents": 50,             # 最大智能体数量
+        "max_agents": 200,            # 最大智能体数量
         "initial_agents": 20,         # 初始智能体数量
         "resource_density": 0.1,      # 资源密度
         "interaction_radius": 5,      # 交互半径

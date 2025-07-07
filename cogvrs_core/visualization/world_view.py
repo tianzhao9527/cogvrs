@@ -53,6 +53,7 @@ class WorldRenderer:
         self.show_trajectories = config.get('show_trajectories', True)
         self.show_connections = config.get('show_connections', True)
         self.show_perception_radius = config.get('show_perception_radius', False)
+        self.show_tribes = config.get('show_tribes', True)  # 默认显示部落
         
         # 缩放和平移
         self.scale_x = self.screen_width / self.world_width
@@ -92,6 +93,10 @@ class WorldRenderer:
         self._draw_terrain(world_state)
         self._draw_resources(world_state)
         
+        # 绘制部落领土和交互
+        if self.show_tribes:
+            self._draw_tribes(world_state)
+        
         # 绘制智能体轨迹
         if self.show_trajectories:
             self._draw_trajectories()
@@ -108,6 +113,150 @@ class WorldRenderer:
         
         # 更新显示
         pygame.display.flip()
+    
+    def _draw_tribes(self, world_state: Dict):
+        """绘制部落领土和交互"""
+        tribes = world_state.get('tribes', [])
+        tribe_interactions = world_state.get('tribe_interactions', [])
+        
+        # 绘制部落间交互连线
+        for interaction in tribe_interactions:
+            center_a = interaction['center_a']
+            center_b = interaction['center_b']
+            relation_type = interaction['relation_type']
+            color = interaction['color']
+            
+            # 转换坐标到屏幕坐标
+            screen_a = self.world_to_screen(center_a[0], center_a[1])
+            screen_b = self.world_to_screen(center_b[0], center_b[1])
+            
+            # 根据关系类型选择线条样式
+            if relation_type == 'alliance':
+                # 同盟：实线，较粗
+                pygame.draw.line(self.screen, color, screen_a, screen_b, 3)
+            elif relation_type == 'conflict':
+                # 冲突：虚线效果
+                self._draw_dashed_line(screen_a, screen_b, color, 2)
+            else:
+                # 中性：细线
+                pygame.draw.line(self.screen, color, screen_a, screen_b, 1)
+        
+        # 绘制部落领土圆圈
+        for tribe in tribes:
+            center = tribe['center']
+            radius = tribe['radius']
+            color = tribe['color']
+            population = tribe['population']
+            name = tribe['name']
+            
+            # 转换坐标
+            screen_center = self.world_to_screen(center[0], center[1])
+            screen_radius = int(radius * self.scale_x)
+            
+            # 绘制领土边界（半透明圆圈）
+            territory_color = (*color, 50)  # 半透明
+            self._draw_transparent_circle(screen_center, screen_radius, territory_color, 2)
+            
+            # 绘制部落中心点
+            pygame.draw.circle(self.screen, color, screen_center, 8)
+            pygame.draw.circle(self.screen, (255, 255, 255), screen_center, 8, 2)
+            
+            # 绘制部落名称和信息
+            if screen_radius > 30:  # 只在足够大的时候显示文字
+                font = pygame.font.Font(None, 20)
+                name_text = font.render(name, True, (255, 255, 255))
+                pop_text = font.render(f"Pop: {population}", True, (200, 200, 200))
+                
+                # 计算文字位置
+                text_x = screen_center[0] - name_text.get_width() // 2
+                text_y = screen_center[1] - 25
+                
+                self.screen.blit(name_text, (text_x, text_y))
+                self.screen.blit(pop_text, (text_x, text_y + 15))
+    
+    def _draw_dashed_line(self, start, end, color, width):
+        """绘制虚线"""
+        start_x, start_y = start
+        end_x, end_y = end
+        
+        # 计算线段长度和方向
+        length = ((end_x - start_x) ** 2 + (end_y - start_y) ** 2) ** 0.5
+        if length == 0:
+            return
+        
+        dx = (end_x - start_x) / length
+        dy = (end_y - start_y) / length
+        
+        # 绘制虚线段
+        dash_length = 5
+        gap_length = 3
+        current_pos = 0
+        
+        while current_pos < length:
+            # 虚线段开始位置
+            dash_start_x = int(start_x + dx * current_pos)
+            dash_start_y = int(start_y + dy * current_pos)
+            
+            # 虚线段结束位置
+            dash_end_pos = min(current_pos + dash_length, length)
+            dash_end_x = int(start_x + dx * dash_end_pos)
+            dash_end_y = int(start_y + dy * dash_end_pos)
+            
+            # 绘制虚线段
+            pygame.draw.line(self.screen, color, 
+                           (dash_start_x, dash_start_y), 
+                           (dash_end_x, dash_end_y), width)
+            
+            current_pos += dash_length + gap_length
+    
+    def _draw_transparent_circle(self, center, radius, color, width):
+        """绘制半透明圆圈"""
+        # 创建临时surface
+        temp_surface = pygame.Surface((radius * 2 + width, radius * 2 + width), pygame.SRCALPHA)
+        temp_surface.set_alpha(color[3] if len(color) > 3 else 128)
+        
+        # 在临时surface上绘制圆圈
+        circle_color = color[:3] if len(color) > 3 else color
+        pygame.draw.circle(temp_surface, circle_color, 
+                         (radius + width//2, radius + width//2), radius, width)
+        
+        # 将临时surface绘制到主屏幕
+        self.screen.blit(temp_surface, 
+                        (center[0] - radius - width//2, center[1] - radius - width//2))
+    
+    def _draw_leader_icon(self, screen_x: int, screen_y: int, radius: int):
+        """绘制首领图标（皇冠）"""
+        # 皇冠颜色
+        crown_color = (255, 215, 0)  # 金色
+        crown_outline = (255, 255, 255)  # 白色边框
+        
+        # 皇冠位置（在智能体上方）
+        crown_x = screen_x
+        crown_y = screen_y - radius - 8
+        
+        # 绘制皇冠底座
+        crown_base_points = [
+            (crown_x - 6, crown_y + 3),
+            (crown_x + 6, crown_y + 3),
+            (crown_x + 4, crown_y),
+            (crown_x - 4, crown_y)
+        ]
+        pygame.draw.polygon(self.screen, crown_color, crown_base_points)
+        pygame.draw.polygon(self.screen, crown_outline, crown_base_points, 1)
+        
+        # 绘制皇冠尖齿
+        crown_teeth = [
+            (crown_x - 4, crown_y),
+            (crown_x - 2, crown_y - 4),
+            (crown_x, crown_y - 6),
+            (crown_x + 2, crown_y - 4),
+            (crown_x + 4, crown_y)
+        ]
+        pygame.draw.polygon(self.screen, crown_color, crown_teeth)
+        pygame.draw.polygon(self.screen, crown_outline, crown_teeth, 1)
+        
+        # 绘制皇冠中央的宝石
+        pygame.draw.circle(self.screen, (255, 100, 100), (crown_x, crown_y - 3), 2)  # 红宝石
     
     def _draw_grid(self):
         """绘制网格"""
@@ -238,14 +387,28 @@ class WorldRenderer:
             # 更新轨迹
             self._update_agent_trajectory(agent.agent_id, (agent.position.x, agent.position.y))
             
-            # 选择颜色基于能量水平
-            energy_ratio = agent.energy / agent.max_energy
-            if energy_ratio > 0.7:
-                color = self.colors['agent_high_energy']
-            elif energy_ratio < 0.3:
-                color = self.colors['agent_low_energy']
+            # 选择颜色 - 优先使用部落颜色
+            if hasattr(agent, 'tribe_color') and agent.tribe_color:
+                base_color = agent.tribe_color
+                # 根据能量水平调整亮度
+                energy_ratio = agent.energy / agent.max_energy
+                if energy_ratio > 0.7:
+                    # 高能量：增加亮度
+                    color = tuple(min(255, int(c * 1.2)) for c in base_color)
+                elif energy_ratio < 0.3:
+                    # 低能量：降低亮度
+                    color = tuple(max(50, int(c * 0.6)) for c in base_color)
+                else:
+                    color = base_color
             else:
-                color = self.colors['agent']
+                # 无部落时使用默认颜色方案
+                energy_ratio = agent.energy / agent.max_energy
+                if energy_ratio > 0.7:
+                    color = self.colors['agent_high_energy']
+                elif energy_ratio < 0.3:
+                    color = self.colors['agent_low_energy']
+                else:
+                    color = self.colors['agent']
             
             # 大小基于健康状态
             health_ratio = agent.health / agent.max_health
@@ -261,6 +424,10 @@ class WorldRenderer:
             
             # 绘制智能体主体
             pygame.draw.circle(self.screen, color, (screen_x, screen_y), radius)
+            
+            # 绘制首领图标
+            if hasattr(agent, 'is_tribe_leader') and agent.is_tribe_leader:
+                self._draw_leader_icon(screen_x, screen_y, radius)
             
             # 绘制方向指示
             if agent.velocity.magnitude() > 0.1:
@@ -397,6 +564,10 @@ class WorldRenderer:
                 self.show_connections = not self.show_connections
             elif event.key == pygame.K_p:
                 self.show_perception_radius = not self.show_perception_radius
+            elif event.key == pygame.K_b:
+                # B键切换部落显示
+                self.show_tribes = not self.show_tribes
+                print(f"🏘️ 部落显示: {'开启' if self.show_tribes else '关闭'}")
             elif event.key == pygame.K_r:
                 # 重置轨迹
                 self.agent_trajectories.clear()
