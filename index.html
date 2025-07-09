@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cogvrs - 认知宇宙模拟平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #007AFF;
+            --secondary-color: #5856D6;
+            --text-dark: #1D1D1F;
+            --text-light: #86868B;
+            --bg-white: #FFFFFF;
+            --bg-light: #F5F5F7;
+            --bg-card: #FAFAFA;
+            --border-light: #E5E5E7;
+            --accent-green: #30D158;
+            --accent-orange: #FF9500;
+            --accent-red: #FF3B30;
+            --shadow-light: rgba(0, 0, 0, 0.04);
+            --shadow-medium: rgba(0, 0, 0, 0.08);
+            --gradient-primary: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+            --gradient-card: linear-gradient(135deg, #FAFAFA 0%, #F5F5F7 100%);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: var(--bg-white);
+            overflow-x: hidden;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-light);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        nav.scrolled {
+            box-shadow: 0 2px 20px var(--shadow-light);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 72px;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+
+        .nav-menu a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: color 0.3s ease;
+            position: relative;
+        }
+
+        .nav-menu a:hover {
+            color: var(--primary-color);
+        }
+
+        .nav-menu a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary-color);
+            transition: width 0.3s ease;
+        }
+
+        .nav-menu a:hover::after {
+            width: 100%;
+        }
+
+        /* Hero Section */
+        .hero {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--gradient-primary);
+            color: white;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><radialGradient id="grad1" cx="50%" cy="50%" r="50%"><stop offset="0%" style="stop-color:rgba(255,255,255,0.1);stop-opacity:1" /><stop offset="100%" style="stop-color:rgba(255,255,255,0);stop-opacity:0" /></radialGradient></defs><circle cx="200" cy="200" r="100" fill="url(%23grad1)" opacity="0.3"><animate attributeName="cy" values="200;800;200" dur="20s" repeatCount="indefinite"/></circle><circle cx="800" cy="300" r="80" fill="url(%23grad1)" opacity="0.2"><animate attributeName="cx" values="800;200;800" dur="15s" repeatCount="indefinite"/></circle><circle cx="500" cy="700" r="120" fill="url(%23grad1)" opacity="0.25"><animate attributeName="r" values="120;200;120" dur="10s" repeatCount="indefinite"/></circle></svg>');
+            opacity: 0.1;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            z-index: 1;
+            position: relative;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+        }
+
+        .hero p {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .cta-button:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+
+        /* Sections */
+        .section {
+            padding: 6rem 0;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+
+        .section h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 3rem;
+            text-align: center;
+            color: var(--text-dark);
+            letter-spacing: -0.02em;
+        }
+
+        .section h3 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--text-dark);
+        }
+
+        .section p {
+            font-size: 1.1rem;
+            color: var(--text-light);
+            margin-bottom: 1.5rem;
+            line-height: 1.8;
+        }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            padding: 2rem;
+            border-radius: 20px;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient-primary);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px var(--shadow-medium);
+        }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: var(--gradient-primary);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .feature-card h4 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+        }
+
+        .feature-card p {
+            color: var(--text-light);
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        /* System Overview */
+        .system-overview {
+            background: var(--bg-light);
+            padding: 4rem 0;
+            margin: 4rem 0;
+            border-radius: 30px;
+        }
+
+        .system-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .system-item {
+            text-align: center;
+            padding: 2rem;
+            background: var(--bg-white);
+            border-radius: 20px;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .system-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px var(--shadow-light);
+        }
+
+        .system-number {
+            width: 50px;
+            height: 50px;
+            background: var(--gradient-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin: 0 auto 1rem auto;
+        }
+
+        .system-item h4 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+
+        .system-item p {
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        /* Stats */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 20px;
+            border: 1px solid var(--border-light);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: var(--bg-card);
+            padding: 2rem;
+            border-radius: 20px;
+            border: 1px solid var(--border-light);
+            margin: 2rem 0;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .control-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-white);
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .control-item:hover {
+            background: var(--bg-light);
+            transform: translateY(-2px);
+        }
+
+        .control-key {
+            width: 40px;
+            height: 40px;
+            background: var(--gradient-primary);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .control-desc {
+            flex: 1;
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        /* Theory Section */
+        .theory-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .theory-card {
+            background: var(--bg-card);
+            padding: 2rem;
+            border-radius: 20px;
+            border: 1px solid var(--border-light);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .theory-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--gradient-primary);
+            opacity: 0.02;
+            transition: opacity 0.3s ease;
+        }
+
+        .theory-card:hover::before {
+            opacity: 0.05;
+        }
+
+        .theory-icon {
+            width: 50px;
+            height: 50px;
+            background: var(--gradient-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            font-size: 1.2rem;
+        }
+
+        /* Installation Steps */
+        .install-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .install-step {
+            position: relative;
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 20px;
+            border: 1px solid var(--border-light);
+        }
+
+        .install-step::before {
+            content: attr(data-step);
+            position: absolute;
+            top: -15px;
+            left: 2rem;
+            background: var(--gradient-primary);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .install-step h4 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+        }
+
+        .install-step pre {
+            background: var(--text-dark);
+            color: #00FF00;
+            padding: 1rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--text-dark);
+            color: white;
+            padding: 4rem 0 2rem 0;
+            margin-top: 6rem;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            text-align: center;
+        }
+
+        .footer-content h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: white;
+        }
+
+        .footer-content p {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 2rem;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: white;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 2rem;
+            margin-top: 2rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .nav-menu {
+                display: none;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero p {
+                font-size: 1.2rem;
+            }
+
+            .section {
+                padding: 3rem 0;
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            .section h2 {
+                font-size: 2rem;
+            }
+
+            .feature-grid,
+            .system-grid,
+            .theory-grid,
+            .install-steps {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-on-scroll {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease;
+        }
+
+        .animate-on-scroll.animated {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Smooth scrolling for iOS */
+        @supports (-webkit-overflow-scrolling: touch) {
+            html {
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav id="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo">Cogvrs</a>
+            <ul class="nav-menu">
+                <li><a href="#introduction">介绍</a></li>
+                <li><a href="#systems">系统</a></li>
+                <li><a href="#theory">理论</a></li>
+                <li><a href="#usage">使用</a></li>
+                <li><a href="#installation">安装</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Cogvrs</h1>
+            <p>认知宇宙模拟平台</p>
+            <p style="font-size: 1.2rem; margin-bottom: 3rem;">探索数字生命的涌现与文明的演化</p>
+            <a href="#introduction" class="cta-button">开始探索</a>
+        </div>
+    </section>
+
+    <!-- Introduction Section -->
+    <section id="introduction" class="section">
+        <h2 class="animate-on-scroll">项目介绍</h2>
+        <div class="animate-on-scroll">
+            <p>Cogvrs（Cognitive Universe Simulation Platform）是一个前沿的认知宇宙模拟平台，致力于通过人工智能和先进的计算技术，创造和观察类似地球的行星文明。这是一个科学-哲学实验项目，旨在探索"通过AI和编程创造并观察类地行星文明的可行性"。</p>
+            
+            <p>该平台不仅仅是一个模拟器，更是一个探索意识涌现机制的实验室。我们的目标是验证模拟假说的可行性，创造具有哲学思考能力的数字生命，并理解文明演化的普遍规律。</p>
+        </div>
+
+        <div class="stats animate-on-scroll">
+            <div class="stat-item">
+                <div class="stat-number">31+</div>
+                <div class="stat-label">科技项目</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">50+</div>
+                <div class="stat-label">技能系统</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">7</div>
+                <div class="stat-label">意识层级</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">10</div>
+                <div class="stat-label">地形类型</div>
+            </div>
+        </div>
+
+        <div class="feature-grid animate-on-scroll">
+            <div class="feature-card">
+                <div class="feature-icon">🧠</div>
+                <h4>意识涌现</h4>
+                <p>通过复杂的认知架构，模拟智能体从简单反应到创造性思维的七个意识层级发展过程。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🌍</div>
+                <h4>环境交互</h4>
+                <p>真实的地形系统影响智能体行为，河流促进航海技术，山脉阻隔文明交流。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏛️</div>
+                <h4>文明演化</h4>
+                <p>观察智能体自发形成部落、发展科技、建立文化传统的完整社会演化过程。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Systems Section -->
+    <section id="systems" class="section">
+        <h2 class="animate-on-scroll">系统架构</h2>
+        <div class="animate-on-scroll">
+            <p>Cogvrs采用七层架构设计，每一层都精心构建以支持复杂的涌现行为。从基础的物理引擎到高级的意识系统，每个组件都相互协作，创造出真实而复杂的虚拟世界。</p>
+        </div>
+
+        <div class="system-overview animate-on-scroll">
+            <div class="system-grid">
+                <div class="system-item">
+                    <div class="system-number">1</div>
+                    <h4>物理引擎</h4>
+                    <p>基于Vector2D的高效物理计算，支持智能体移动、碰撞检测和环境交互。</p>
+                </div>
+                <div class="system-item">
+                    <div class="system-number">2</div>
+                    <h4>环境系统</h4>
+                    <p>包含地形生成、气候模拟、资源分布等环境要素，影响智能体行为。</p>
+                </div>
+                <div class="system-item">
+                    <div class="system-number">3</div>
+                    <h4>生命系统</h4>
+                    <p>智能体的生命周期管理，包括出生、成长、繁殖、衰老和死亡。</p>
+                </div>
+                <div class="system-item">
+                    <div class="system-number">4</div>
+                    <h4>社会系统</h4>
+                    <p>部落形成、贸易网络、社会关系和文化传承的复杂社会动力学。</p>
+                </div>
+                <div class="system-item">
+                    <div class="system-number">5</div>
+                    <h4>意识系统</h4>
+                    <p>七层意识架构，从反应性到超越性的认知能力发展。</p>
+                </div>
+                <div class="system-item">
+                    <div class="system-number">6</div>
+                    <h4>观察系统</h4>
+                    <p>实时监控和数据分析，提供详细的系统状态报告。</p>
+                </div>
+                <div class="system-item">
+                    <div class="system-number">7</div>
+                    <h4>实验系统</h4>
+                    <p>支持多种实验设置和参数调整，便于科学研究。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-grid animate-on-scroll">
+            <div class="feature-card">
+                <div class="feature-icon">🗺️</div>
+                <h4>地形系统</h4>
+                <p>10种地形类型：海洋、河流、山脉、丘陵、森林、草原、沙漠、沼泽、苔原、海岸。每种地形都影响智能体的移动、资源获取和技能发展。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔬</div>
+                <h4>科技系统</h4>
+                <p>31+项科技分为10个类别，包括生存、农业、手工艺、社会、军事、知识、交通、医学、天文和航海技术。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h4>技能系统</h4>
+                <p>50+项技能涵盖生存、制造、社交、智力、体能、艺术、领导、精神、技术和文化等多个领域。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏘️</div>
+                <h4>部落系统</h4>
+                <p>智能体自发形成社会群体，发展贸易关系、结成联盟、解决冲突，形成复杂的社会网络。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Theory Section -->
+    <section id="theory" class="section">
+        <h2 class="animate-on-scroll">理论基础</h2>
+        <div class="animate-on-scroll">
+            <p>Cogvrs的设计基于多个前沿科学理论，结合了认知科学、复杂系统理论、人工智能和哲学等多个领域的最新研究成果。</p>
+        </div>
+
+        <div class="theory-grid animate-on-scroll">
+            <div class="theory-card">
+                <div class="theory-icon">🧩</div>
+                <h4>涌现理论</h4>
+                <p>基于复杂系统理论，简单的个体交互能够产生复杂的集体行为。智能体通过局部交互规则产生全局智能和文明现象。</p>
+            </div>
+            <div class="theory-card">
+                <div class="theory-icon">🌐</div>
+                <h4>意识层级理论</h4>
+                <p>参考认知科学研究，设计了七个意识层级：反应性、感知、体验、概念、反思、创造和超越意识，模拟认知能力的渐进发展。</p>
+            </div>
+            <div class="theory-card">
+                <div class="theory-icon">🔄</div>
+                <h4>自组织理论</h4>
+                <p>系统通过内部动力学自发形成有序结构，无需外部控制。部落、贸易网络和社会制度都通过自组织过程产生。</p>
+            </div>
+            <div class="theory-card">
+                <div class="theory-icon">🎭</div>
+                <h4>文化演化理论</h4>
+                <p>文化信息通过学习和模仿传播，类似于生物进化的选择和变异机制。技能、知识和价值观在群体间传承和发展。</p>
+            </div>
+            <div class="theory-card">
+                <div class="theory-icon">🌟</div>
+                <h4>协同进化理论</h4>
+                <p>环境、技术、社会和意识系统相互影响，共同演化。地形影响技术发展，技术改变社会结构，社会复杂性促进意识进化。</p>
+            </div>
+            <div class="theory-card">
+                <div class="theory-icon">🔮</div>
+                <h4>模拟假说</h4>
+                <p>探索现实本身可能是模拟的哲学假说，通过创造逼真的数字世界来理解现实的本质和意识的起源。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Usage Section -->
+    <section id="usage" class="section">
+        <h2 class="animate-on-scroll">使用指南</h2>
+        <div class="animate-on-scroll">
+            <p>Cogvrs提供直观的用户界面和丰富的交互功能，让您能够深入观察和分析数字文明的发展过程。</p>
+        </div>
+
+        <div class="feature-grid animate-on-scroll">
+            <div class="feature-card">
+                <div class="feature-icon">🎮</div>
+                <h4>渲染模式</h4>
+                <p>四种渲染模式：地形+智能体、地形+部落、纯地形显示、系统状态概览。使用M键在不同模式间切换。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h4>实时监控</h4>
+                <p>右侧信息面板显示详细的系统状态，包括科技发展、意识等级、技能分布和部落动态。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📈</div>
+                <h4>数据分析</h4>
+                <p>使用S键保存详细的JSON格式系统报告，P键打印控制台摘要，获取完整的分析数据。</p>
+            </div>
+        </div>
+
+        <div class="control-panel animate-on-scroll">
+            <h3>控制说明</h3>
+            <div class="control-grid">
+                <div class="control-item">
+                    <div class="control-key">M</div>
+                    <div class="control-desc">切换渲染模式</div>
+                </div>
+                <div class="control-item">
+                    <div class="control-key">空格</div>
+                    <div class="control-desc">暂停/继续模拟</div>
+                </div>
+                <div class="control-item">
+                    <div class="control-key">S</div>
+                    <div class="control-desc">保存系统报告</div>
+                </div>
+                <div class="control-item">
+                    <div class="control-key">P</div>
+                    <div class="control-desc">打印报告摘要</div>
+                </div>
+                <div class="control-item">
+                    <div class="control-key">T</div>
+                    <div class="control-desc">切换地形效果</div>
+                </div>
+                <div class="control-item">
+                    <div class="control-key">R</div>
+                    <div class="control-desc">显示智能体轨迹</div>
+                </div>
+                <div class="control-item">
+                    <div class="control-key">B</div>
+                    <div class="control-desc">显示部落领土</div>
+                </div>
+                <div class="control-item">
+                    <div class="control-key">+/-</div>
+                    <div class="control-desc">缩放控制</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation Section -->
+    <section id="installation" class="section">
+        <h2 class="animate-on-scroll">安装与运行</h2>
+        <div class="animate-on-scroll">
+            <p>按照以下步骤快速安装和运行Cogvrs认知宇宙模拟平台：</p>
+        </div>
+
+        <div class="install-steps animate-on-scroll">
+            <div class="install-step" data-step="1">
+                <h4>环境准备</h4>
+                <p>创建Python虚拟环境并激活：</p>
+                <pre>python3 -m venv venv
+source venv/bin/activate</pre>
+            </div>
+            <div class="install-step" data-step="2">
+                <h4>安装依赖</h4>
+                <p>安装所需的Python包：</p>
+                <pre>pip install numpy matplotlib pygame</pre>
+            </div>
+            <div class="install-step" data-step="3">
+                <h4>运行模拟器</h4>
+                <p>启动Cogvrs模拟平台：</p>
+                <pre>python run_cogvrs.py</pre>
+            </div>
+        </div>
+
+        <div class="feature-grid animate-on-scroll">
+            <div class="feature-card">
+                <div class="feature-icon">⚙️</div>
+                <h4>系统要求</h4>
+                <p>支持Python 3.7+，推荐使用Python 3.9或更高版本。需要支持图形界面的操作系统（Windows、macOS、Linux）。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔧</div>
+                <h4>配置选项</h4>
+                <p>支持多种配置选项：智能体数量、世界大小、渲染质量、目标FPS等。可通过启动界面进行设置。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🚀</div>
+                <h4>性能优化</h4>
+                <p>优化的渲染引擎，支持多种性能模式。可根据硬件配置调整参数以获得最佳性能表现。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <h3>Cogvrs</h3>
+            <p>探索数字生命的无限可能</p>
+            <div class="footer-links">
+                <a href="#introduction">项目介绍</a>
+                <a href="#systems">系统架构</a>
+                <a href="#theory">理论基础</a>
+                <a href="#usage">使用指南</a>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Cogvrs Project. 认知宇宙模拟平台 - 探索意识与文明的奥秘</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Navbar scroll effect
+        window.addEventListener('scroll', function() {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+
+        // Animate on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animated');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.animate-on-scroll').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Add some interactive effects
+        document.querySelectorAll('.feature-card, .system-item, .theory-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+
+        // Add click effects for control items
+        document.querySelectorAll('.control-item').forEach(item => {
+            item.addEventListener('click', function() {
+                this.style.transform = 'scale(0.98)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 150);
+            });
+        });
+    </script>
+</body>
+</html>
