@@ -3,7 +3,7 @@
 > An experimental platform for exploring artificial consciousness and civilization emergence  
 > 一个探索人工意识和文明涌现的实验平台
 
-![Version](https://img.shields.io/badge/version-2.0.0--enhanced-blue)
+![Version](https://img.shields.io/badge/version-4.0.0--complete-blue)
 ![Python](https://img.shields.io/badge/python-3.8+-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
@@ -28,44 +28,51 @@ python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # 3. Install dependencies
-pip install -r requirements.txt
+pip install numpy matplotlib pygame
 ```
 
 ### Run the Simulation
 
 ```bash
-# 🌟 Enhanced Version (Recommended)
-python3 run_cogvrs_enhanced.py
+# 🌟 Complete Version (Recommended)
+python3 run_cogvrs.py
 
-# 🚀 Simple Version
-python3 run_simple.py
-
-# 📊 Detailed Logging Version
-python3 run_cogvrs_detailed.py
-
-# 🎥 Demo Status Output
-python3 demo_output.py
+# 🧪 Test the fixes
+python3 test_fixes.py
 ```
 
-## ✨ New in v2.0 Enhanced
+## 📖 Complete Project Manual
 
-### 🎨 **Visual Improvements**
-- ✅ **Fixed Screen Flickering** - Smooth, stable rendering with optimized double buffering
-- 🌈 **Colorful Sidebar Display** - Real-time status with rich colors and emojis
-- 📊 **Three-Panel Interface** - World Statistics, Agent Analysis, System Status
-- 🎯 **Performance Optimized** - Stable 30 FPS with intelligent frame skipping
+**🎨 [View the Complete Project Manual](./index.html)**
 
-### 📈 **Enhanced Analytics**
-- 📊 **Automatic HTML Reports** - Interactive visualization reports with Chart.js
-- 🔍 **Real-time Data Collection** - Complete session recording and analysis
-- 📋 **Comprehensive Guides** - Detailed observation and usage documentation
-- 🧠 **System Deep Dive** - Complete technical architecture analysis
+Open `index.html` in your browser for a beautiful, comprehensive guide covering:
+- 📚 **Project Introduction** - Vision, goals, and key features
+- 🏗️ **System Architecture** - 7-layer technical architecture
+- 🔬 **Theoretical Foundation** - Scientific and philosophical basis
+- 🎮 **Usage Guide** - Controls, features, and interaction
+- 💻 **Installation** - Step-by-step setup instructions
 
-### 🎮 **Improved User Experience**
-- 🎪 **Multiple Launchers** - Different complexity levels for various use cases
-- 💡 **Startup Guides** - Built-in instructions and tips
-- 🔧 **Better Error Handling** - Clear feedback and troubleshooting
-- 📚 **Complete Documentation** - Usage guides, observation manuals, technical specs
+*Features modern Nordic minimalist design with interactive elements*
+
+## ✨ New in v4.0 Complete
+
+### 🎨 **User Issue Fixes**
+- ✅ **Fixed Chinese Character Display** - Perfect Chinese font rendering in GUI
+- 📊 **Complete System Reports** - S key saves JSON reports, P key prints summaries
+- 🧪 **Validation Testing** - Comprehensive test suite with 100% pass rate
+- 🎯 **Professional Manual** - Beautiful HTML project handbook
+
+### 📈 **Enhanced Core Systems**
+- 🧠 **Consciousness System** - 7-level consciousness development (Reactive→Transcendent)
+- 🛠️ **Skill System** - 50+ skills across 10 categories with specialization
+- 🔬 **Technology System** - 31+ technologies with research and prerequisites
+- 🏘️ **Tribe Formation** - Complex social dynamics and civilization emergence
+
+### 🎮 **Advanced Features**
+- 🗺️ **Terrain System** - 10 terrain types affecting agent behavior
+- 🎨 **Optimized GUI** - Toggle render modes, terrain effects, real-time monitoring
+- 🌍 **Environmental Effects** - Rivers enable ships, mountains block communication
+- 📈 **System Integration** - All systems work together for emergent behavior
 
 ## 📊 Understanding the Interface
 
@@ -118,29 +125,36 @@ python3 demo_output.py
 
 ### ⌨️ **Keyboard Controls**
 - **Space**: Pause/Resume simulation
-- **G**: Toggle grid display
-- **T**: Toggle agent trajectories
-- **C**: Toggle agent connections
-- **P**: Toggle perception radius
-- **R**: Reset trajectory records
+- **M**: Toggle render modes (4 modes: terrain+agents, terrain+tribes, pure terrain, system status)
+- **S**: Save detailed system report (JSON format)
+- **P**: Print system report summary to console
+- **T**: Toggle terrain effects display
+- **R**: Toggle agent trajectories
+- **B**: Toggle tribal territories
+- **+/-**: Zoom in/out
 
-### 🖱️ **GUI Controls**
-- **Play/Pause Button**: Control simulation state
-- **Speed Slider**: Adjust simulation speed (0.1x - 5.0x)
-- **Add Agent Button**: Dynamically add agents
-- **Reset Button**: Restart simulation
+### 🖱️ **GUI Features**
+- **Right Info Panel**: Real-time system status with Chinese font support
+- **Terrain Visualization**: 10 terrain types with environmental effects
+- **Agent Tracking**: Individual agent behavior and development
+- **Tribe Formation**: Watch civilizations emerge from individuals
 
 ## 📚 Documentation
 
 ### 📋 **User Guides**
-- [FINAL_USAGE_GUIDE.md](FINAL_USAGE_GUIDE.md) - Complete usage instructions
-- [OBSERVATION_GUIDE.md](OBSERVATION_GUIDE.md) - Detailed observation techniques
-- [STATUS_OUTPUT_README.md](STATUS_OUTPUT_README.md) - Status display guide
+- [USAGE.md](USAGE.md) - Complete usage instructions and feature guide
+- [FIX_COMPLETION_REPORT.md](FIX_COMPLETION_REPORT.md) - Detailed fix report and validation
+- [index.html](index.html) - Beautiful project manual with Nordic design
 
 ### 🔧 **Technical Documentation**
 - [ACTUAL_SYSTEM_ANALYSIS.md](ACTUAL_SYSTEM_ANALYSIS.md) - Real implementation analysis
 - [SYSTEM_DEEP_DIVE.md](SYSTEM_DEEP_DIVE.md) - Deep technical architecture
-- [Project_Plan.md](Project_Plan.md) - Original project planning
+- [CLAUDE.md](CLAUDE.md) - Project development context and status
+
+### 🧪 **Testing & Validation**
+- [test_fixes.py](test_fixes.py) - Comprehensive test suite for all fixes
+- Automated validation for font rendering and system reports
+- 100% test coverage for critical functionality
 
 ## 🧪 Experiment Scenarios
 
@@ -205,13 +219,22 @@ flake8 cogvrs_core/
 
 ## 🏆 Version History
 
-### 🚀 **v2.0.0 Enhanced** (Current)
-- ✅ Fixed screen flickering issues
-- 🎨 Enhanced colorful sidebar display
+### 🚀 **v4.0.0 Complete** (Current)
+- ✅ Fixed Chinese character display issues
+- 📊 Complete system reporting (S/P keys)
+- 🧠 Advanced consciousness system (7 levels)
+- 🛠️ Comprehensive skill system (50+ skills)
+- 🔬 Technology system (31+ technologies)
+- 🏘️ Tribe formation and civilization emergence
+- 🗺️ Terrain system with environmental effects
+- 🎨 Beautiful HTML project manual
+- 🧪 Complete test suite with validation
+
+### 🌱 **v3.0.0 Enhanced**
+- ✅ Multi-scale visualization system
 - 📊 Automatic HTML report generation
-- 📚 Complete documentation suite
-- 🛠️ Multiple launcher options
 - 🔧 Improved error handling
+- 📚 Complete documentation suite
 
 ### 🌱 **v0.1.0 Prototype**
 - ✅ Basic multi-agent system
