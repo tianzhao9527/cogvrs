@@ -78,7 +78,7 @@ class BehaviorSystem:
     def __init__(self, config: Dict):
         self.config = config
         self.mutation_rate = config.get('mutation_rate', 0.1)
-        self.reproduction_threshold = config.get('reproduction_threshold', 80)
+        self.reproduction_threshold = config.get('reproduction_threshold', 120)  # 提高繁殖阈值
         self.energy_decay = config.get('energy_decay', 0.02)
         self.social_tendency = config.get('social_tendency', 0.5)
         
@@ -88,7 +88,7 @@ class BehaviorSystem:
             'energy': Motivation('energy', 0.2, 0.01, 0.7),
             'curiosity': Motivation('curiosity', 0.8, 0.005, 0.5),
             'social': Motivation('social', 0.4, 0.008, 0.6),
-            'reproduction': Motivation('reproduction', 0.1, 0.001, 0.9),
+            'reproduction': Motivation('reproduction', 0.05, 0.005, 0.95),  # 降低繁殖动机
             'safety': Motivation('safety', 0.3, 0.005, 0.8)
         }
         
@@ -166,9 +166,14 @@ class BehaviorSystem:
         if health_level < 0.5:
             self.motivations['safety'].stimulate(0.3)
         
-        # 繁殖欲望与年龄相关
-        if age > 50 and energy_level > 0.6:
-            self.motivations['reproduction'].stimulate(0.1)
+        # 繁殖欲望与年龄相关（更严格的条件）
+        if (age > 100 and age < 180 and  # 缩小繁殖年龄窗口
+            energy_level > 0.85 and      # 提高能量要求
+            health_level > 0.8 and       # 增加健康要求
+            agent_state.get('offspring_count', 0) < 3):  # 限制后代数量
+            # 添加随机性降低繁殖概率
+            if np.random.random() < 0.2:  # 20%概率触发
+                self.motivations['reproduction'].stimulate(0.05)
         
         # 好奇心随机波动
         if np.random.random() < 0.1:

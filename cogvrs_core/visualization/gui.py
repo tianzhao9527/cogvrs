@@ -16,10 +16,14 @@ from ..core import PhysicsEngine, World2D, TimeManager
 from ..core.physics_engine import Vector2D
 from ..agents import SimpleAgent
 from ..environment import EnvironmentManager, WeatherSystem, TerrainSystem
+from ..environment.disaster_system import DisasterSystem
 from .world_view import WorldRenderer
 from .multi_scale import (
     ScaleManager, CameraSystem, RenderingPipeline, 
     InteractionController, ScaleLevel
+)
+from ..utils.event_logger import (
+    initialize_event_logger, get_event_logger, EventType, EventSeverity
 )
 
 logger = logging.getLogger(__name__)
@@ -83,12 +87,25 @@ class CogvrsGUI:
         self.back_buffer = pygame.Surface((self.window_width, self.window_height))
         self.dirty_rects = []  # 脏矩形区域
         
-        # 创建GUI管理器
-        self.ui_manager = pygame_gui.UIManager((self.window_width, self.window_height))
+        # 创建GUI管理器并配置中文字体
+        self.ui_manager = pygame_gui.UIManager(
+            (self.window_width, self.window_height),
+            theme_path=None
+        )
+        
+        # 配置中文字体支持
+        self._setup_chinese_font()
         
         print(f"🖥️ 显示区域初始化: {self.window_width}x{self.window_height}")
         print(f"   世界视图: {self.world_view_width}x{self.world_view_height}")
         print(f"   检测到屏幕: {self.screen_width}x{self.screen_height}")
+        
+        # 初始化事件记录器
+        self.event_logger = initialize_event_logger({
+            'max_events': 5000,
+            'auto_save': True,
+            'save_interval': 200
+        })
         
         # 初始化核心系统
         self._initialize_simulation()
@@ -115,11 +132,26 @@ class CogvrsGUI:
         
         # 时间控制 - 进一步优化性能
         self.clock = pygame.time.Clock()
-        self.target_fps = config.get('target_fps', 30)  # 恢复到30fps但优化渲染
+        self.target_fps = config.get('target_fps', 30)
         self.frame_count = 0
         self.last_stats_update = 0
-        self.stats_update_interval = 0.5  # 更频繁更新UI显示
-        self.render_skip = 0  # 跳帧计数器
+        self.stats_update_interval = 0.5
+        
+        # 性能配置
+        rendering_config = config.get('rendering', {})
+        self.rendering_quality = rendering_config.get('quality', 'normal')
+        self.skip_frames = rendering_config.get('skip_frames', 0)
+        self.render_skip_counter = 0  # 跳帧计数器
+        
+        print(f"🎨 Rendering Quality: {self.rendering_quality}")
+        print(f"⚡ Frame Skip: {self.skip_frames} frames")
+        print(f"🎯 Target FPS: {self.target_fps}")
+        
+        # 根据性能设置调整参数
+        if self.rendering_quality == 'low':
+            self.stats_update_interval = 1.0  # 降低UI更新频率
+        elif self.rendering_quality == 'high':
+            self.stats_update_interval = 0.3  # 提高UI更新频率
         
         # 数据收集系统
         self.session_data = {
@@ -176,7 +208,7 @@ class CogvrsGUI:
         # 只更新未设置的默认值，不覆盖用户配置
         world_config.setdefault('size', (100, 100))
         world_config.setdefault('resource_density', 0.15)
-        world_config.setdefault('max_agents', self.config.get('world', {}).get('max_agents', 200))  # 使用用户配置的max_agents
+        world_config.setdefault('max_agents', self.config.get('world', {}).get('max_agents', 10000))  # 移除200智能体限制，大幅提高上限
         self.world = World2D(world_config)
         
         # 时间管理器
@@ -206,6 +238,16 @@ class CogvrsGUI:
         
         # 创建环境管理器（包含新的气候系统）
         self.environment_manager = EnvironmentManager(world_size)
+        
+        # 灾难系统
+        self.disaster_system = DisasterSystem(
+            world_size=world_size,
+            config={
+                'enable_disasters': True,
+                'disaster_frequency': 0.0008,  # 增加灾难频率
+                'min_disaster_interval': 90   # 最小间隔1.5分钟
+            }
+        )
         
         # 传递环境配置到气候系统
         if hasattr(self.environment_manager, 'climate_system'):
@@ -296,79 +338,276 @@ class CogvrsGUI:
     
     def _create_ui_elements(self):
         """创建UI元素"""
-        # 控制面板背景
-        self.control_panel = pygame.Rect(self.world_view_width + 10, 10, self.panel_width - 20, self.window_height - 20)
-        
-        # 按钮位置
+        # 重新设计布局以支持更多面板
+        panel_width = self.panel_width - 20
         button_x = self.world_view_width + 20
-        button_y = 30
-        button_width = 120
+        
+        # 创建标签页容器
+        self.create_tabbed_interface(button_x, panel_width)
+        
+        # 初始化日志缓冲区
+        self.log_buffer = []
+        self.max_log_lines = 500
+        self.current_log_filter = 'All'
+        
+        # 设置日志捕获
+        self._setup_log_capture()
+        
+        # 初始化灾难事件缓冲区
+        self.disaster_events = []
+        self.max_disaster_events = 20
+    
+    def _setup_log_capture(self):
+        """设置日志捕获机制"""
+        import sys
+        from io import StringIO
+        
+        class GUILogHandler(logging.Handler):
+            def __init__(self, gui_instance):
+                super().__init__()
+                self.gui = gui_instance
+                
+            def emit(self, record):
+                try:
+                    msg = self.format(record)
+                    timestamp = time.strftime('%H:%M:%S')
+                    log_type = record.levelname
+                    formatted_msg = f"[{timestamp}] {log_type}: {msg}"
+                    
+                    # 添加到缓冲区
+                    self.gui.log_buffer.append(formatted_msg)
+                    
+                    # 保持缓冲区大小限制
+                    if len(self.gui.log_buffer) > self.gui.max_log_lines:
+                        self.gui.log_buffer = self.gui.log_buffer[-self.gui.max_log_lines:]
+                        
+                except Exception:
+                    pass  # 避免日志处理器本身出错
+        
+        # 添加GUI日志处理器到根日志记录器
+        self.gui_log_handler = GUILogHandler(self)
+        self.gui_log_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(name)s: %(message)s')
+        self.gui_log_handler.setFormatter(formatter)
+        
+        # 添加到cogvrs相关的logger
+        cogvrs_logger = logging.getLogger('cogvrs_core')
+        cogvrs_logger.addHandler(self.gui_log_handler)
+        
+        # 也添加到当前模块的logger
+        current_logger = logging.getLogger(__name__)
+        current_logger.addHandler(self.gui_log_handler)
+        
+        # 添加一些初始日志消息
+        self.log_buffer.extend([
+            f"[{time.strftime('%H:%M:%S')}] System: GUI logging system started",
+            f"[{time.strftime('%H:%M:%S')}] System: Tabbed interface initialized",
+            f"[{time.strftime('%H:%M:%S')}] System: Ready to start simulation..."
+        ])
+    
+    def _setup_chinese_font(self):
+        """设置中文字体支持"""
+        try:
+            import pygame_gui
+            import os
+            
+            # 查找中文字体路径
+            font_paths = [
+                # pygame_gui内置的中文字体
+                "/Users/xubin/python/cogvrs/cogvrs_env/lib/python3.13/site-packages/pygame_gui/data/NotoSansSC-Regular.otf",
+                "/Users/xubin/python/cogvrs/venv/lib/python3.13/site-packages/pygame_gui/data/NotoSansSC-Regular.otf",
+                # 系统字体备选
+                "/System/Library/Fonts/PingFang.ttc",
+                "/System/Library/Fonts/Helvetica.ttc",
+                "/Users/xubin/python/cogvrs/cogvrs_env/lib/python3.13/site-packages/pygame/freesansbold.ttf",
+                "/Users/xubin/python/cogvrs/venv/lib/python3.13/site-packages/pygame/freesansbold.ttf"
+            ]
+            
+            # 找到可用的字体
+            chinese_font_path = None
+            for font_path in font_paths:
+                if os.path.exists(font_path):
+                    chinese_font_path = font_path
+                    break
+            
+            if chinese_font_path:
+                # 创建字体主题配置
+                theme_dict = {
+                    'defaults': {
+                        'font': {
+                            'name': chinese_font_path,
+                            'size': 14,
+                            'bold': False,
+                            'italic': False
+                        }
+                    },
+                    'button': {
+                        'font': {
+                            'name': chinese_font_path,
+                            'size': 12,
+                            'bold': False
+                        }
+                    },
+                    'text_box': {
+                        'font': {
+                            'name': chinese_font_path,
+                            'size': 11,
+                            'bold': False
+                        }
+                    },
+                    'label': {
+                        'font': {
+                            'name': chinese_font_path,
+                            'size': 12,
+                            'bold': False
+                        }
+                    }
+                }
+                
+                # 写入临时主题文件
+                import json
+                theme_file = "/tmp/cogvrs_chinese_theme.json"
+                with open(theme_file, 'w', encoding='utf-8') as f:
+                    json.dump(theme_dict, f, ensure_ascii=False, indent=2)
+                
+                # 重新创建UI管理器使用中文主题
+                self.ui_manager = pygame_gui.UIManager(
+                    (self.window_width, self.window_height),
+                    theme_path=theme_file
+                )
+                
+                print(f"✅ 中文字体配置成功: {os.path.basename(chinese_font_path)}")
+            else:
+                print("⚠️ 未找到中文字体，使用默认字体")
+                
+        except Exception as e:
+            print(f"❌ 字体配置失败: {e}")
+            print("使用默认字体配置")
+    
+    def create_tabbed_interface(self, button_x, panel_width):
+        """创建标签页界面"""
+        tab_height = 35
         button_height = 30
-        button_spacing = 40
+        
+        # 标签按钮
+        tab_button_width = panel_width // 4
+        self.tab_buttons = {}
+        
+        # 控制标签
+        self.tab_buttons['control'] = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect(button_x, 10, tab_button_width, tab_height),
+            text='Control',
+            manager=self.ui_manager
+        )
+        
+        # 部落标签
+        self.tab_buttons['tribes'] = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect(button_x + tab_button_width, 10, tab_button_width, tab_height),
+            text='Tribes',
+            manager=self.ui_manager
+        )
+        
+        # 灾难标签
+        self.tab_buttons['disasters'] = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect(button_x + tab_button_width * 2, 10, tab_button_width, tab_height),
+            text='Disasters',
+            manager=self.ui_manager
+        )
+        
+        # 日志标签
+        self.tab_buttons['logs'] = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect(button_x + tab_button_width * 3, 10, tab_button_width, tab_height),
+            text='Logs',
+            manager=self.ui_manager
+        )
+        
+        # 内容区域
+        content_y = 50
+        content_height = self.window_height - 70
+        
+        # 创建各个标签页内容
+        self.create_control_panel(button_x, content_y, panel_width, content_height)
+        self.create_tribes_panel(button_x, content_y, panel_width, content_height)
+        self.create_disasters_panel(button_x, content_y, panel_width, content_height)
+        self.create_logs_panel(button_x, content_y, panel_width, content_height)
+        
+        # 当前活动标签
+        self.active_tab = 'control'
+        self.update_tab_visibility()
+    
+    def create_control_panel(self, x, y, width, height):
+        """创建控制面板"""
+        self.control_elements = {}
         
         # 播放/暂停按钮
-        self.play_pause_button = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect(button_x, button_y, button_width, button_height),
+        self.control_elements['play_pause'] = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect(x, y + 10, 120, 30),
             text='Pause',
             manager=self.ui_manager
         )
         
         # 重置按钮
-        self.reset_button = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect(button_x + 130, button_y, button_width, button_height),
+        self.control_elements['reset'] = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect(x + 130, y + 10, 120, 30),
             text='Reset',
             manager=self.ui_manager
         )
         
-        # 速度控制滑块
-        slider_y = button_y + button_spacing
-        self.speed_label = pygame_gui.elements.UILabel(
-            relative_rect=pygame.Rect(button_x, slider_y, button_width, 25),
+        # 速度控制
+        self.control_elements['speed_label'] = pygame_gui.elements.UILabel(
+            relative_rect=pygame.Rect(x, y + 50, 120, 25),
             text='Speed: 1.0x',
             manager=self.ui_manager
         )
         
-        self.speed_slider = pygame_gui.elements.UIHorizontalSlider(
-            relative_rect=pygame.Rect(button_x, slider_y + 30, 250, 20),
+        self.control_elements['speed_slider'] = pygame_gui.elements.UIHorizontalSlider(
+            relative_rect=pygame.Rect(x, y + 80, 250, 20),
             start_value=1.0,
             value_range=(0.1, 5.0),
             manager=self.ui_manager
         )
         
         # 添加智能体按钮
-        add_agent_y = slider_y + 70
-        self.add_agent_button = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect(button_x, add_agent_y, button_width, button_height),
+        self.control_elements['add_agent'] = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect(x, y + 120, 120, 30),
             text='Add Agent',
             manager=self.ui_manager
         )
         
-        # 统计信息区域 - 扩大显示区域
-        stats_y = add_agent_y + 60
-        self.stats_text = pygame_gui.elements.UITextBox(
-            relative_rect=pygame.Rect(button_x, stats_y, 250, 160),
+        # 为兼容性创建个别按钮引用
+        self.play_pause_button = self.control_elements['play_pause']
+        self.reset_button = self.control_elements['reset']
+        self.add_agent_button = self.control_elements['add_agent']
+        self.speed_slider = self.control_elements['speed_slider']
+        self.speed_label = self.control_elements['speed_label']
+        
+        # 统计信息
+        self.control_elements['stats'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 170, width, 150),
             html_text="<b>World Statistics</b><br>Loading...",
             manager=self.ui_manager
         )
         
-        # 智能体详细信息区域
-        details_y = stats_y + 170
-        self.details_text = pygame_gui.elements.UITextBox(
-            relative_rect=pygame.Rect(button_x, details_y, 250, 100),
+        # 智能体详细信息
+        self.control_elements['details'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 330, width, 120),
             html_text="<b>Agent Analysis</b><br>Analyzing behaviors...",
             manager=self.ui_manager
         )
         
-        # 系统状态区域
-        system_y = details_y + 110
-        self.system_text = pygame_gui.elements.UITextBox(
-            relative_rect=pygame.Rect(button_x, system_y, 250, 60),
+        # 系统状态
+        self.control_elements['system'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 460, width, 80),
             html_text="<b>System Status</b><br>Initializing...",
             manager=self.ui_manager
         )
         
+        # 为兼容性创建个别文本框引用
+        self.stats_text = self.control_elements['stats']
+        self.details_text = self.control_elements['details']
+        self.system_text = self.control_elements['system']
+        
         # 控制说明
-        help_y = details_y + 170
         help_text = ("<b>🎮 Multi-Scale Controls:</b><br>"
                     "<font color='#FFD700'>1 - Micro Scale</font><br>"
                     "<font color='#90EE90'>2 - Meso Scale</font><br>"
@@ -377,11 +616,157 @@ class CogvrsGUI:
                     "<font color='#FFCC99'>M - Toggle Render Mode</font><br>"
                     "<font color='#CCCCCC'>Space - Pause/Resume</font>")
         
-        self.help_text = pygame_gui.elements.UITextBox(
-            relative_rect=pygame.Rect(button_x, help_y, 250, 120),
+        self.control_elements['help'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 550, width, 120),
             html_text=help_text,
             manager=self.ui_manager
         )
+    
+    def create_tribes_panel(self, x, y, width, height):
+        """创建部落信息面板"""
+        self.tribes_elements = {}
+        
+        # 部落总览
+        self.tribes_elements['overview'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 10, width, 120),
+            html_text="<b>Tribe Overview</b><br>Scanning tribe information...",
+            manager=self.ui_manager
+        )
+        
+        # 部落选择下拉框
+        self.tribes_elements['selector_label'] = pygame_gui.elements.UILabel(
+            relative_rect=pygame.Rect(x, y + 140, 100, 25),
+            text='Select Tribe:',
+            manager=self.ui_manager
+        )
+        
+        self.tribes_elements['selector'] = pygame_gui.elements.UIDropDownMenu(
+            relative_rect=pygame.Rect(x + 100, y + 140, width - 100, 30),
+            options_list=['No Tribes'],
+            starting_option='No Tribes',
+            manager=self.ui_manager
+        )
+        
+        # 选中部落详细信息
+        self.tribes_elements['details'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 180, width, 200),
+            html_text="<b>Tribe Details</b><br>Select a tribe to view details",
+            manager=self.ui_manager
+        )
+        
+        # 部落成员列表
+        self.tribes_elements['members'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 390, width, 150),
+            html_text="<b>Member List</b><br>Waiting for tribe data...",
+            manager=self.ui_manager
+        )
+        
+        # 外交关系
+        self.tribes_elements['diplomacy'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 550, width, 100),
+            html_text="<b>Diplomatic Relations</b><br>Analyzing...",
+            manager=self.ui_manager
+        )
+    
+    def create_disasters_panel(self, x, y, width, height):
+        """创建灾难监控面板"""
+        self.disasters_elements = {}
+        
+        # 当前活跃灾难
+        self.disasters_elements['active_disasters'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 10, width, 150),
+            html_text="<b>Active Disasters</b><br>Monitoring...",
+            manager=self.ui_manager
+        )
+        
+        # 灾难历史记录
+        self.disasters_elements['disaster_history'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 170, width, 200),
+            html_text="<b>Disaster History</b><br>Collecting historical data...",
+            manager=self.ui_manager
+        )
+        
+        # 灾难统计
+        self.disasters_elements['disaster_stats'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 380, width, 120),
+            html_text="<b>Disaster Statistics</b><br>Calculating...",
+            manager=self.ui_manager
+        )
+        
+        # 环境状态
+        self.disasters_elements['environment_status'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 510, width, 100),
+            html_text="<b>Environment Status</b><br>Detecting...",
+            manager=self.ui_manager
+        )
+        
+        # 预警信息
+        self.disasters_elements['warnings'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 620, width, 80),
+            html_text="<b>Warning Information</b><br>No warnings",
+            manager=self.ui_manager
+        )
+    
+    def create_logs_panel(self, x, y, width, height):
+        """创建日志面板"""
+        self.logs_elements = {}
+        
+        # 日志过滤控制
+        self.logs_elements['filter_label'] = pygame_gui.elements.UILabel(
+            relative_rect=pygame.Rect(x, y + 10, 60, 25),
+            text='Filter:',
+            manager=self.ui_manager
+        )
+        
+        self.logs_elements['filter'] = pygame_gui.elements.UIDropDownMenu(
+            relative_rect=pygame.Rect(x + 60, y + 10, 120, 30),
+            options_list=['All', 'System', 'Agent', 'Tribe', 'Disaster', 'Error'],
+            starting_option='All',
+            manager=self.ui_manager
+        )
+        
+        # 清除日志按钮
+        self.logs_elements['clear_button'] = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect(x + 190, y + 10, 60, 30),
+            text='Clear',
+            manager=self.ui_manager
+        )
+        
+        # 日志显示区域
+        self.logs_elements['log_display'] = pygame_gui.elements.UITextBox(
+            relative_rect=pygame.Rect(x, y + 50, width, height - 60),
+            html_text="<b>System Logs</b><br><font color='#008000'>System initializing...</font>",
+            manager=self.ui_manager
+        )
+    
+    def update_tab_visibility(self):
+        """更新标签页可见性"""
+        # 隐藏所有面板
+        for elements in [self.control_elements, self.tribes_elements, 
+                        self.disasters_elements, self.logs_elements]:
+            for element in elements.values():
+                element.visible = False
+        
+        # 显示当前活跃标签的面板
+        if self.active_tab == 'control':
+            for element in self.control_elements.values():
+                element.visible = True
+        elif self.active_tab == 'tribes':
+            for element in self.tribes_elements.values():
+                element.visible = True
+        elif self.active_tab == 'disasters':
+            for element in self.disasters_elements.values():
+                element.visible = True
+        elif self.active_tab == 'logs':
+            for element in self.logs_elements.values():
+                element.visible = True
+        
+        # 更新标签按钮样式
+        for tab_name, button in self.tab_buttons.items():
+            if tab_name == self.active_tab:
+                button.background_colour = pygame.Color(100, 126, 234)
+            else:
+                button.background_colour = pygame.Color(64, 64, 64)
     
     def update_simulation(self, dt: float):
         """更新模拟状态"""
@@ -478,11 +863,25 @@ class CogvrsGUI:
             print(f"✅ 繁殖验证成功: 总数 {agents_before_reproduction} → {agents_after_reproduction} (新增{new_born_count})")
             print(f"   活跃数: {alive_before_reproduction} → {alive_after_reproduction}")
         
+        # 更新灾难系统
+        if hasattr(self, 'disaster_system'):
+            tribe_dict = {}
+            if hasattr(self, 'tribe_manager') and self.tribe_manager:
+                tribe_dict = self.tribe_manager.tribes
+            self.disaster_system.update(alive_agents, tribe_dict, dt)
+        
+        # 定期清理死亡智能体以避免内存泄漏和统计错误
+        if self.time_manager.current_step % 100 == 0:  # 每100步清理一次
+            dead_agents = [a for a in self.agents if not a.alive]
+            if dead_agents:
+                print(f"🧹 清理 {len(dead_agents)} 个死亡智能体，保持列表整洁")
+                self.agents = [a for a in self.agents if a.alive]
+        
         # 收集数据
         self._collect_session_data()
         
         # 检查种群灭绝
-        if len(self.agents) == 0:
+        if len([a for a in self.agents if a.alive]) == 0:
             self._handle_extinction_event()
     
     def _get_nearby_agents(self, agent: SimpleAgent) -> List[SimpleAgent]:
@@ -502,7 +901,7 @@ class CogvrsGUI:
     def _handle_reproduction(self, agents: List[SimpleAgent]):
         """处理智能体繁殖"""
         new_agents = []
-        max_agents = self.config.get('world', {}).get('max_agents', 200)  # 使用用户配置的最大智能体数量
+        max_agents = self.config.get('world', {}).get('max_agents', 10000)  # 移除200智能体限制，大幅提高上限
         current_alive_count = len([a for a in self.agents if a.alive])
         
         for agent in agents:
@@ -986,6 +1385,114 @@ class CogvrsGUI:
         html_content += """
                 </div>
             </div>
+            
+            <h2 class="section-title">📝 详细事件日志</h2>
+            <div class="tribe-summary">
+                <h3>🌟 重大事件</h3>
+                <div class="events-list">
+"""
+        
+        # 获取事件记录器的重大事件
+        if self.event_logger:
+            major_events = self.event_logger.get_major_events(30)  # 最近30个重大事件
+            for event in major_events:
+                event_severity_emoji = {
+                    'low': '🔵',
+                    'medium': '🟡', 
+                    'high': '🟠',
+                    'critical': '🔴'
+                }
+                severity_emoji = event_severity_emoji.get(event['severity'], '⚪')
+                html_content += f"""
+                    <div class="event-item">
+                        <span class="event-time">{severity_emoji} [{event['time_str']}]</span>
+                        <span class="event-desc">{event['description']}</span>
+                    </div>"""
+        
+        html_content += """
+                </div>
+                
+                <h3>🏘️ 部落事件统计</h3>
+                <div class="tribe-stats">
+"""
+        
+        # 获取部落事件统计
+        if self.event_logger:
+            event_stats = self.event_logger.get_event_statistics()
+            tribe_events = len(self.event_logger.get_events(EventType.TRIBE_FORMATION)) + \
+                          len(self.event_logger.get_events(EventType.TRIBE_DISSOLUTION)) + \
+                          len(self.event_logger.get_events(EventType.TRIBE_ALLIANCE)) + \
+                          len(self.event_logger.get_events(EventType.TRIBE_CONFLICT))
+            
+            agent_events = len(self.event_logger.get_events(EventType.AGENT_BIRTH)) + \
+                          len(self.event_logger.get_events(EventType.AGENT_DEATH)) + \
+                          len(self.event_logger.get_events(EventType.AGENT_REPRODUCTION))
+            
+            climate_events = len(self.event_logger.get_events(EventType.CLIMATE_EPOCH_CHANGE))
+            
+            html_content += f"""
+                    <p><strong>部落事件总数:</strong> {tribe_events} 次</p>
+                    <p><strong>智能体生命事件:</strong> {agent_events} 次</p>
+                    <p><strong>气候变化事件:</strong> {climate_events} 次</p>
+                    <p><strong>事件总计:</strong> {event_stats['total_events']} 次</p>
+                    <p><strong>每分钟事件数:</strong> {event_stats['events_per_minute']:.1f} 次/分钟</p>
+"""
+        
+        html_content += """
+                </div>
+                
+                <h3>🧬 智能体里程碑</h3>
+                <div class="events-list">
+"""
+        
+        # 获取智能体里程碑事件
+        if self.event_logger:
+            milestone_events = self.event_logger.get_events(EventType.AGENT_LEARNING_MILESTONE, limit=20)
+            for event in milestone_events:
+                event_time = datetime.fromtimestamp(event.timestamp).strftime('%H:%M:%S')
+                milestone_emoji = {
+                    'first_reproduction': '👶',
+                    'explorer': '🗺️',
+                    'survivor': '⚔️',
+                    'social_master': '🤝',
+                    'elder': '👴'
+                }
+                emoji = milestone_emoji.get(event.data.get('milestone', ''), '🏆')
+                html_content += f"""
+                    <div class="event-item">
+                        <span class="event-time">{emoji} [{event_time}]</span>
+                        <span class="event-desc">{event.description}</span>
+                    </div>"""
+        
+        html_content += """
+                </div>
+                
+                <h3>🌍 气候变化记录</h3>
+                <div class="events-list">
+"""
+        
+        # 获取气候事件
+        if self.event_logger:
+            climate_events = self.event_logger.get_events(EventType.CLIMATE_EPOCH_CHANGE, limit=15)
+            for event in climate_events:
+                event_time = datetime.fromtimestamp(event.timestamp).strftime('%H:%M:%S')
+                climate_emoji = {
+                    'temperate': '🌤️',
+                    'ice_age': '🧊',
+                    'greenhouse': '🌡️',
+                    'arid': '🏜️',
+                    'volcanic': '🌋'
+                }
+                emoji = climate_emoji.get(event.data.get('new_epoch', ''), '🌍')
+                html_content += f"""
+                    <div class="event-item">
+                        <span class="event-time">{emoji} [{event_time}]</span>
+                        <span class="event-desc">{event.description}</span>
+                    </div>"""
+        
+        html_content += """
+                </div>
+            </div>
         </div>
     </div>
     
@@ -1396,6 +1903,245 @@ class CogvrsGUI:
         self.system_text.html_text = system_html
         self.system_text.rebuild()
     
+    def _update_tribes_tab(self):
+        """更新部落标签页数据"""
+        if not hasattr(self, 'tribes_elements'):
+            return
+            
+        tribe_overview = "<b>Tribe Overview</b><br>No tribes detected<br>"
+        tribe_selector_options = ['No Tribes']
+        detailed_info = "<b>Tribe Details</b><br>No tribe selected<br>"
+        members_info = "<b>Tribe Statistics</b><br>No data available<br>"
+        diplomacy_info = "<b>Diplomatic Status</b><br>No diplomatic data<br>"
+        
+        if hasattr(self, 'tribe_manager') and self.tribe_manager:
+            try:
+                tribes_info_raw = self.tribe_manager.get_tribes_info()
+                
+                # 正确提取部落数据
+                if tribes_info_raw and 'tribes' in tribes_info_raw:
+                    tribes_info = tribes_info_raw['tribes']
+                    tribe_count = tribes_info_raw.get('total_tribes', len(tribes_info))
+                else:
+                    tribes_info = {}
+                    tribe_count = 0
+                
+                # 部落概述 - 计算总成员数
+                total_members = 0
+                if tribes_info:
+                    for tribe_data in tribes_info.values():
+                        if isinstance(tribe_data, dict):
+                            population = tribe_data.get('population', 0)
+                            total_members += population if isinstance(population, int) else 0
+                
+                tribe_overview = f"""<b>Tribe Overview</b><br>
+                Tribe Count: {tribe_count}<br>
+                Total Members: {total_members}<br>
+                Activity: {'High' if tribe_count > 3 else 'Medium' if tribe_count > 1 else 'Low'}<br><br>
+                """
+                
+                # 更新部落选择器选项和显示详细信息
+                if tribes_info:
+                    # 添加部落名称到选择器
+                    for tribe_id, tribe_data in tribes_info.items():
+                        if isinstance(tribe_data, dict):
+                            tribe_name = tribe_data.get('name', tribe_id)
+                            tribe_selector_options.append(f"{tribe_name} ({tribe_id})")
+                    
+                    # 选择第一个部落显示详细信息
+                    first_tribe_id = list(tribes_info.keys())[0]
+                    tribe_data = tribes_info[first_tribe_id]
+                    
+                    # 提取部落详细信息
+                    if isinstance(tribe_data, dict):
+                        tribe_name = tribe_data.get('name', first_tribe_id)
+                        population = tribe_data.get('population', 0)
+                        civilization_level = tribe_data.get('civilization_level', 'nomadic')
+                        technology_level = tribe_data.get('technology_level', 0)
+                        territory_center = tribe_data.get('territory_center', (0, 0))
+                        territory_radius = tribe_data.get('territory_radius', 0)
+                        formation_time = tribe_data.get('formation_time', 0)
+                        allies = tribe_data.get('allies', 0)
+                        enemies = tribe_data.get('enemies', 0)
+                    
+                        detailed_info = f"""<b>{tribe_name} Details</b><br>
+                        Population: {population}<br>
+                        Civilization: {civilization_level.title()}<br>
+                        Technology Level: {technology_level:.2f}<br>
+                        Territory: Center ({territory_center[0]:.1f}, {territory_center[1]:.1f}), Radius {territory_radius:.1f}<br>
+                        Formation Time: {formation_time:.1f}s<br><br>
+                        """
+                        
+                        # 成员信息 - 显示成员总数和部落统计
+                        members_info = f"""<b>Tribe Statistics</b><br>
+                        Total Members: {population}<br>
+                        Allies: {allies}<br>
+                        Enemies: {enemies}<br>
+                        Age: {time.time() - formation_time:.1f}s<br>
+                        """
+                        
+                        # 外交关系信息
+                        diplomacy_status = "Peaceful" if enemies == 0 else "At War" if enemies > allies else "Tense"
+                        diplomacy_info = f"""<b>Diplomatic Status</b><br>
+                        Status: {diplomacy_status}<br>
+                        Total Relations: {allies + enemies}<br>
+                        Diplomatic Score: {allies - enemies}<br>
+                        """
+                    else:
+                        detailed_info = f"<b>{first_tribe_id}</b><br>Data format error<br>"
+                        members_info = "<b>Members</b><br>Data unavailable<br>"
+                        diplomacy_info = "<b>Diplomacy</b><br>Data unavailable<br>"
+                
+            except Exception as e:
+                tribe_overview = f"<b>Data Loading Error</b><br>Error: {str(e)}"
+        
+        # 更新UI元素 - 使用正确的键名
+        if 'overview' in self.tribes_elements:
+            self.tribes_elements['overview'].html_text = tribe_overview
+            self.tribes_elements['overview'].rebuild()
+            
+        if 'details' in self.tribes_elements:
+            self.tribes_elements['details'].html_text = detailed_info
+            self.tribes_elements['details'].rebuild()
+            
+        if 'members' in self.tribes_elements:
+            self.tribes_elements['members'].html_text = members_info
+            self.tribes_elements['members'].rebuild()
+            
+        if 'diplomacy' in self.tribes_elements:
+            self.tribes_elements['diplomacy'].html_text = diplomacy_info
+            self.tribes_elements['diplomacy'].rebuild()
+            
+        # 更新部落选择器
+        if 'selector' in self.tribes_elements and tribe_selector_options:
+            # 更新下拉列表选项（这需要重建元素）
+            current_rect = self.tribes_elements['selector'].relative_rect
+            self.tribes_elements['selector'].kill()
+            self.tribes_elements['selector'] = pygame_gui.elements.UIDropDownMenu(
+                relative_rect=current_rect,
+                options_list=tribe_selector_options,
+                starting_option=tribe_selector_options[0],
+                manager=self.ui_manager
+            )
+    
+    def _update_disasters_tab(self):
+        """更新灾难标签页数据"""
+        if not hasattr(self, 'disasters_elements'):
+            return
+            
+        active_disasters = ""
+        disaster_history = ""
+        disaster_stats = ""
+        environment_status = ""
+        warnings = ""
+        
+        if hasattr(self, 'disaster_system') and self.disaster_system:
+            try:
+                # 活跃灾难
+                active = getattr(self.disaster_system, 'active_disasters', [])
+                if active:
+                    active_list = []
+                    for disaster in active[-5:]:  # 最近5个灾难
+                        if isinstance(disaster, dict):
+                            disaster_type = disaster.get('type', 'Unknown')
+                            severity = disaster.get('severity', 'Unknown')
+                            location = disaster.get('location', (0, 0))
+                            active_list.append(f"• {disaster_type} (Severity: {severity}) Location: ({location[0]:.1f}, {location[1]:.1f})")
+                        else:
+                            active_list.append(f"• {disaster} (Data format error)")
+                    active_disasters = f"<b>Active Disasters</b><br>{'<br>'.join(active_list)}<br><br>"
+                else:
+                    active_disasters = "<b>Active Disasters</b><br>No active disasters<br><br>"
+                
+                # 灾难历史
+                history = getattr(self.disaster_system, 'disaster_history', [])
+                if history:
+                    history_list = []
+                    for disaster in history[-10:]:  # 最近10个历史灾难
+                        if isinstance(disaster, dict):
+                            disaster_type = disaster.get('type', 'Unknown')
+                            casualties = disaster.get('casualties', 0)
+                            history_list.append(f"• {disaster_type} - Casualties: {casualties}")
+                        else:
+                            history_list.append(f"• {disaster} (Data format error)")
+                    disaster_history = f"<b>Disaster History</b><br>{'<br>'.join(history_list)}<br><br>"
+                
+                # 灾难统计
+                total_disasters = len(history)
+                total_casualties = sum(d.get('casualties', 0) if isinstance(d, dict) else 0 for d in history)
+                disaster_stats = f"""<b>Disaster Statistics</b><br>
+                Total Disasters: {total_disasters}<br>
+                Total Casualties: {total_casualties}<br>
+                Average Casualties: {total_casualties/max(total_disasters, 1):.1f}<br><br>
+                """
+                
+            except Exception as e:
+                active_disasters = f"<b>Data Loading Error</b><br>Error: {str(e)}"
+        
+        # 环境状态
+        if hasattr(self, 'environment_manager') and self.environment_manager:
+            try:
+                weather = getattr(self.environment_manager, 'weather_system', None)
+                if weather:
+                    temp = getattr(weather, 'current_temperature', 20)
+                    humidity = getattr(weather, 'current_humidity', 50)
+                    environment_status = f"""<b>Environment Status</b><br>
+                    Temperature: {temp:.1f}°C<br>
+                    Humidity: {humidity:.1f}%<br>
+                    Weather: {'Harsh' if temp > 35 or temp < 5 else 'Normal'}<br><br>
+                    """
+            except Exception as e:
+                environment_status = f"<b>Environment Status</b><br>Data unavailable"
+        
+        # 预警信息
+        warnings = "<b>Warning Information</b><br>No warnings<br>"
+        
+        # 更新UI元素
+        if 'active_disasters' in self.disasters_elements:
+            self.disasters_elements['active_disasters'].html_text = active_disasters
+            self.disasters_elements['active_disasters'].rebuild()
+            
+        if 'disaster_history' in self.disasters_elements:
+            self.disasters_elements['disaster_history'].html_text = disaster_history
+            self.disasters_elements['disaster_history'].rebuild()
+            
+        if 'disaster_stats' in self.disasters_elements:
+            self.disasters_elements['disaster_stats'].html_text = disaster_stats
+            self.disasters_elements['disaster_stats'].rebuild()
+            
+        if 'environment_status' in self.disasters_elements:
+            self.disasters_elements['environment_status'].html_text = environment_status
+            self.disasters_elements['environment_status'].rebuild()
+            
+        if 'warnings' in self.disasters_elements:
+            self.disasters_elements['warnings'].html_text = warnings
+            self.disasters_elements['warnings'].rebuild()
+    
+    def _update_logs_tab(self):
+        """更新日志标签页数据"""
+        if not hasattr(self, 'logs_elements'):
+            return
+            
+        # 获取当前过滤设置
+        current_filter = getattr(self, 'current_log_filter', 'All')
+        
+        # 准备日志内容
+        filtered_logs = []
+        for log_entry in self.log_buffer[-100:]:  # 最近100条日志
+            if current_filter == 'All' or current_filter in log_entry:
+                filtered_logs.append(log_entry)
+        
+        # 格式化日志显示
+        if filtered_logs:
+            log_text = "<br>".join(filtered_logs[-50:])  # 显示最近50条
+        else:
+            log_text = "No log data available"
+        
+        # 更新日志显示
+        if 'log_display' in self.logs_elements:
+            self.logs_elements['log_display'].html_text = f"<b>System Logs</b><br>{log_text}"
+            self.logs_elements['log_display'].rebuild()
+    
     def handle_events(self):
         """处理事件"""
         events = pygame.event.get()
@@ -1440,6 +2186,19 @@ class CogvrsGUI:
                         self._reset_simulation()
                     elif event.ui_element == self.add_agent_button:
                         self._add_random_agents(1)
+                    
+                    # 处理标签页按钮点击
+                    elif event.ui_element in self.tab_buttons.values():
+                        for tab_name, button in self.tab_buttons.items():
+                            if event.ui_element == button:
+                                self.active_tab = tab_name
+                                self.update_tab_visibility()
+                                break
+                    
+                    # 处理日志面板的清空按钮
+                    elif hasattr(self, 'logs_elements') and event.ui_element == self.logs_elements.get('clear_button'):
+                        self.log_buffer.clear()
+                        self._update_logs_tab()
                 
                 elif event.user_type == pygame_gui.UI_HORIZONTAL_SLIDER_MOVED:
                     if event.ui_element == self.speed_slider:
@@ -2009,13 +2768,16 @@ class CogvrsGUI:
                 # 添加详细信息
                 if event['type'] == 'reproduction' and 'details' in event:
                     details = event['details']
-                    section_html += f"<br><small>父母: {details.get('parent_id', 'Unknown')}, 代数: {details.get('generation', 0)}</small>"
+                    if isinstance(details, dict):
+                        section_html += f"<br><small>父母: {details.get('parent_id', 'Unknown')}, 代数: {details.get('generation', 0)}</small>"
                 elif event['type'] == 'tribe' and 'details' in event:
                     details = event['details']
-                    section_html += f"<br><small>成员数: {details.get('member_count', 0)}, 领袖: {details.get('leader_id', 'Unknown')}</small>"
+                    if isinstance(details, dict):
+                        section_html += f"<br><small>成员数: {details.get('member_count', 0)}, 领袖: {details.get('leader_id', 'Unknown')}</small>"
                 elif event['type'] == 'agent_death' and 'details' in event:
                     details = event['details']
-                    section_html += f"<br><small>死因: {details.get('cause', 'Unknown')}, 年龄: {details.get('age', 0):.1f}</small>"
+                    if isinstance(details, dict):
+                        section_html += f"<br><small>死因: {details.get('cause', 'Unknown')}, 年龄: {details.get('age', 0):.1f}</small>"
                 
                 section_html += '</div>'
             
@@ -2067,8 +2829,12 @@ class CogvrsGUI:
                 for event in tribe_events:
                     if 'details' in event:
                         details = event['details']
-                        tribe_name = details.get('tribe_name', 'Unknown')
-                        member_count = details.get('member_count', 0)
+                        if isinstance(details, dict):
+                            tribe_name = details.get('tribe_name', 'Unknown')
+                            member_count = details.get('member_count', 0)
+                        else:
+                            tribe_name = 'Unknown'
+                            member_count = 0
                         section_html += f'<li>{tribe_name} - {member_count}成员</li>'
                 section_html += '</ul>'
             
@@ -2130,10 +2896,13 @@ class CogvrsGUI:
         """优化的渲染界面"""
         self.frame_count += 1
         
-        # 跳帧渲染减少负载
-        self.render_skip += 1
-        if self.render_skip % 2 != 0:  # 每隔一帧才完整渲染
-            return
+        # 动态跳帧渲染减少负载
+        if self.skip_frames > 0:
+            self.render_skip_counter += 1
+            if self.render_skip_counter % (self.skip_frames + 1) != 0:
+                # 仅更新UI，跳过世界渲染
+                self.ui_manager.draw_ui(self.screen)
+                return
         
         # 使用后台缓冲区渲染
         self.back_buffer.fill((15, 15, 25))
@@ -2157,13 +2926,26 @@ class CogvrsGUI:
             self.back_buffer, (100, 100, 100),
             (8, 8, self.world_view_width + 4, self.world_view_height + 4), 2
         )
-        pygame.draw.rect(self.back_buffer, (25, 25, 35), self.control_panel)
-        pygame.draw.rect(self.back_buffer, (60, 60, 80), self.control_panel, 2)
+        
+        # 绘制右侧面板区域
+        panel_rect = pygame.Rect(self.world_view_width + 20, 0, self.panel_width - 20, self.window_height)
+        pygame.draw.rect(self.back_buffer, (25, 25, 35), panel_rect)
+        pygame.draw.rect(self.back_buffer, (60, 60, 80), panel_rect, 2)
         
         # 更新UI信息
         current_time = time.time()
         if current_time - self.last_stats_update >= self.stats_update_interval:
             self._update_ui_info()
+            
+            # 更新标签页内容
+            if hasattr(self, 'active_tab'):
+                if self.active_tab == 'tribes':
+                    self._update_tribes_tab()
+                elif self.active_tab == 'disasters':
+                    self._update_disasters_tab()
+                elif self.active_tab == 'logs':
+                    self._update_logs_tab()
+            
             self.last_stats_update = current_time
         
         # 将后台缓冲区内容复制到屏幕
@@ -2409,6 +3191,22 @@ class CogvrsGUI:
         except Exception as e:
             logger.error(f"Failed to generate HTML report: {e}")
             print(f"\n❌ 报告生成失败: {e}")
+        
+        # 关闭事件记录器
+        if hasattr(self, 'event_logger') and self.event_logger:
+            self.event_logger.shutdown()
+            print(f"📝 事件记录器已关闭，共记录 {self.event_logger.total_events} 个事件")
+        
+        # 清理日志处理器
+        if hasattr(self, 'gui_log_handler'):
+            try:
+                cogvrs_logger = logging.getLogger('cogvrs_core')
+                cogvrs_logger.removeHandler(self.gui_log_handler)
+                current_logger = logging.getLogger(__name__)
+                current_logger.removeHandler(self.gui_log_handler)
+                print(f"📄 GUI日志处理器已清理，共捕获 {len(self.log_buffer)} 条日志")
+            except Exception as e:
+                print(f"⚠️ 日志处理器清理时出错: {e}")
         
         if hasattr(self, 'world_renderer'):
             self.world_renderer.cleanup()

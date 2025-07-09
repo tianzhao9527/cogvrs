@@ -12,6 +12,9 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
 from ..core.physics_engine import Vector2D
+from ..utils.event_logger import (
+    EventType, EventSeverity, log_climate_event, log_event, get_event_logger
+)
 
 
 class ClimateEpoch(Enum):
@@ -290,6 +293,35 @@ class ClimateSystem:
             'new_epoch': self.current_epoch,
             'timestamp': time.time()
         })
+        
+        # 记录气候纪元变化事件
+        epoch_info = {
+            ClimateEpoch.TEMPERATE: "温带期 - 适宜条件",
+            ClimateEpoch.ICE_AGE: "冰河世纪 - 极寒环境",
+            ClimateEpoch.GREENHOUSE: "温室期 - 高温高湿",
+            ClimateEpoch.ARID: "干旱期 - 高温缺水",
+            ClimateEpoch.VOLCANIC: "火山期 - 极端环境"
+        }
+        
+        effects = self.epoch_effects[self.current_epoch]
+        
+        log_climate_event(
+            event_type=EventType.CLIMATE_EPOCH_CHANGE,
+            climate_info=self.current_epoch.value,
+            description=f"全球气候进入{epoch_info.get(self.current_epoch, self.current_epoch.value)}",
+            data={
+                'new_epoch': self.current_epoch.value,
+                'epoch_duration': self.epoch_duration,
+                'temperature_modifier': effects.temperature_modifier,
+                'resource_abundance': effects.resource_abundance,
+                'energy_cost_modifier': effects.energy_cost_modifier,
+                'health_modifier': effects.health_modifier,
+                'reproduction_modifier': effects.reproduction_modifier,
+                'migration_pressure': effects.migration_pressure,
+                'previous_epoch_count': len(self.epoch_history)
+            },
+            impact_score=8.0 if self.current_epoch != ClimateEpoch.TEMPERATE else 3.0
+        )
     
     def get_climate_effects_for_position(self, position: Vector2D) -> ClimateEffect:
         """获取指定位置的气候效应"""

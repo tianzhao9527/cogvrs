@@ -9,11 +9,15 @@ import numpy as np
 from typing import Dict, List, Optional, Any, Tuple
 import logging
 import uuid
+import time
 
 from ..core.physics_engine import PhysicsObject, Vector2D
 from .neural_brain import NeuralBrain
 from .memory import MemorySystem
 from .behavior import BehaviorSystem, Action, ActionType
+from ..utils.event_logger import (
+    EventType, EventSeverity, log_agent_event, log_event, get_event_logger
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,22 +66,56 @@ class SimpleAgent(PhysicsObject):
         self.memory = MemorySystem(config.get('memory', {}))
         self.behavior_system = BehaviorSystem(config.get('behavior', {}))
         
-        # 感知系统
-        self.perception_radius = config.get('perception_radius', 10.0)
-        self.communication_radius = config.get('communication_radius', 5.0)
+        # 感知系统 - 基于科技水平的动态范围
+        base_perception = config.get('perception_radius', 8.0)  # 降低基础感知范围
+        base_communication = config.get('communication_radius', 3.0)  # 大幅降低基础通信范围
+        
+        # 智能体的科技水平从0开始
+        self.technology_level = 0.0
+        
+        # 动态计算感知和通信范围
+        self.perception_radius = base_perception
+        self.communication_radius = base_communication
         
         # 统计信息
-        self.birth_time = 0
+        self.birth_time = time.time()
         self.total_distance_traveled = 0.0
         self.resources_consumed = 0
         self.offspring_count = 0
         self.social_interactions = 0
+        
+        # 事件里程碑跟踪
+        self.milestones = {
+            'first_reproduction': False,
+            'explorer': False,  # 旅行距离 > 100
+            'survivor': False,  # 年龄 > 200
+            'social_master': False,  # 社交互动 > 50
+            'elder': False,  # 年龄 > 250
+        }
         
         # 学习相关
         self.learning_rate = config.get('learning_rate', 0.01)
         self.last_reward = 0.0
         
         logger.debug(f"Agent {self.agent_id} created at {self.position}")
+        
+        # 记录智能体出生事件
+        log_agent_event(
+            event_type=EventType.AGENT_BIRTH,
+            agent_id=self.agent_id,
+            description=f"智能体{self.agent_id}在({self.position.x:.1f}, {self.position.y:.1f})出生",
+            data={
+                'agent_id': self.agent_id,
+                'species': self.species,
+                'generation': self.generation,
+                'parent_ids': self.parent_ids,
+                'initial_energy': self.energy,
+                'birth_location': (self.position.x, self.position.y)
+            },
+            location=(self.position.x, self.position.y),
+            participants=[self.agent_id],
+            impact_score=1.0
+        )
     
     def update(self, dt: float, world_state: Dict, nearby_agents: List, nearby_resources: List):
         """更新智能体状态"""
@@ -90,7 +128,7 @@ class SimpleAgent(PhysicsObject):
         # 基础代谢
         self._apply_metabolism(dt)
         
-        # 感知环境
+        # 感知环境（包含地形信息）
         perception_data = self._perceive_environment(world_state, nearby_agents, nearby_resources)
         
         # 神经网络决策
@@ -103,7 +141,7 @@ class SimpleAgent(PhysicsObject):
             agent_state, world_state, nearby_agents, nearby_resources
         )
         
-        # 执行行动
+        # 执行行动（包含地形影响）
         success, reward = self._execute_action(action, world_state, nearby_agents, nearby_resources)
         
         # 学习反馈
@@ -114,6 +152,12 @@ class SimpleAgent(PhysicsObject):
         
         # 健康状态检查
         self._check_health()
+        
+        # 检查里程碑
+        self._check_milestones()
+        
+        # 更新科技相关的能力
+        self._update_technology_effects()
         
         # 记忆巩固
         if self.age % 10 == 0:  # 每10个时间单位整理一次记忆
@@ -140,7 +184,7 @@ class SimpleAgent(PhysicsObject):
             self.health -= (self.age - 200) * 0.01 * dt
     
     def _perceive_environment(self, world_state: Dict, nearby_agents: List, nearby_resources: List) -> Dict:
-        """感知环境"""
+        """感知环境（包含地形信息）"""
         perception = {
             'position': (self.position.x, self.position.y),
             'energy_level': self.energy / self.max_energy,
@@ -152,30 +196,73 @@ class SimpleAgent(PhysicsObject):
             'world_size': world_state.get('size', (100, 100))
         }
         
-        # 感知最近的资源
+        # 获取地形信息
+        terrain_system = world_state.get('terrain_system')
+        if terrain_system:
+            terrain_effects = terrain_system.get_terrain_effects_at_position(self.position)
+            terrain_type = terrain_system.get_terrain_at_position(self.position)
+            
+            perception['terrain_type'] = terrain_type.value if terrain_type else 'grassland'
+            perception['terrain_movement_speed'] = terrain_effects.get('movement_speed', 1.0)
+            perception['terrain_energy_cost'] = terrain_effects.get('energy_cost', 1.0)
+            perception['terrain_resource_availability'] = terrain_effects.get('resource_availability', 1.0)
+            perception['terrain_shelter_value'] = terrain_effects.get('shelter_value', 1.0)
+            perception['terrain_perception_range'] = terrain_effects.get('perception_range', 1.0)
+            
+            # 调整感知范围基于地形
+            effective_perception_radius = self.perception_radius * perception['terrain_perception_range']
+            perception['effective_perception_radius'] = effective_perception_radius
+        else:
+            # 默认地形效果
+            perception['terrain_type'] = 'grassland'
+            perception['terrain_movement_speed'] = 1.0
+            perception['terrain_energy_cost'] = 1.0
+            perception['terrain_resource_availability'] = 1.0
+            perception['terrain_shelter_value'] = 1.0
+            perception['terrain_perception_range'] = 1.0
+            perception['effective_perception_radius'] = self.perception_radius
+        
+        # 感知最近的资源（基于有效感知范围）
         if nearby_resources:
-            closest_resource = min(
-                nearby_resources,
-                key=lambda r: self.position.distance_to(r.position)
-            )
-            perception['closest_resource_distance'] = self.position.distance_to(closest_resource.position)
-            perception['closest_resource_type'] = closest_resource.type
-            perception['closest_resource_amount'] = closest_resource.amount
+            # 过滤在有效感知范围内的资源
+            visible_resources = [r for r in nearby_resources 
+                               if self.position.distance_to(r.position) <= perception['effective_perception_radius']]
+            
+            if visible_resources:
+                closest_resource = min(
+                    visible_resources,
+                    key=lambda r: self.position.distance_to(r.position)
+                )
+                perception['closest_resource_distance'] = self.position.distance_to(closest_resource.position)
+                perception['closest_resource_type'] = closest_resource.type
+                perception['closest_resource_amount'] = closest_resource.amount
+            else:
+                perception['closest_resource_distance'] = float('inf')
+                perception['closest_resource_type'] = 'none'
+                perception['closest_resource_amount'] = 0
         else:
             perception['closest_resource_distance'] = float('inf')
             perception['closest_resource_type'] = 'none'
             perception['closest_resource_amount'] = 0
         
-        # 感知最近的智能体
+        # 感知最近的智能体（基于有效感知范围）
         if nearby_agents:
-            closest_agent = min(
-                nearby_agents,
-                key=lambda a: self.position.distance_to(Vector2D(a.position.x, a.position.y))
-            )
-            perception['closest_agent_distance'] = self.position.distance_to(
-                Vector2D(closest_agent.position.x, closest_agent.position.y)
-            )
-            perception['closest_agent_energy'] = closest_agent.energy / closest_agent.max_energy
+            # 过滤在有效感知范围内的智能体
+            visible_agents = [a for a in nearby_agents 
+                            if self.position.distance_to(Vector2D(a.position.x, a.position.y)) <= perception['effective_perception_radius']]
+            
+            if visible_agents:
+                closest_agent = min(
+                    visible_agents,
+                    key=lambda a: self.position.distance_to(Vector2D(a.position.x, a.position.y))
+                )
+                perception['closest_agent_distance'] = self.position.distance_to(
+                    Vector2D(closest_agent.position.x, closest_agent.position.y)
+                )
+                perception['closest_agent_energy'] = closest_agent.energy / closest_agent.max_energy
+            else:
+                perception['closest_agent_distance'] = float('inf')
+                perception['closest_agent_energy'] = 0
         else:
             perception['closest_agent_distance'] = float('inf')
             perception['closest_agent_energy'] = 0
@@ -248,13 +335,13 @@ class SimpleAgent(PhysicsObject):
         reward = 0.0
         
         if action.type == ActionType.MOVE:
-            success, reward = self._execute_move(action)
+            success, reward = self._execute_move(action, world_state)
         elif action.type == ActionType.EAT:
-            success, reward = self._execute_eat(action, nearby_resources)
+            success, reward = self._execute_eat(action, nearby_resources, world_state)
         elif action.type == ActionType.REST:
             success, reward = self._execute_rest()
         elif action.type == ActionType.COMMUNICATE:
-            success, reward = self._execute_communicate(action, nearby_agents)
+            success, reward = self._execute_communicate(action, nearby_agents, world_state)
         elif action.type == ActionType.COOPERATE:
             success, reward = self._execute_cooperate(action, nearby_agents)
         elif action.type == ActionType.REPRODUCE:
@@ -268,31 +355,49 @@ class SimpleAgent(PhysicsObject):
         
         return success, reward
     
-    def _execute_move(self, action: Action) -> Tuple[bool, float]:
-        """执行移动"""
+    def _execute_move(self, action: Action, world_state: Dict = None) -> Tuple[bool, float]:
+        """执行移动（包含地形影响）"""
         if action.target is None:
             return False, -0.1
         
         # 计算移动方向
         direction = (action.target - self.position).normalize()
-        speed = min(2.0, action.intensity * 1.5)
+        base_speed = min(2.0, action.intensity * 1.5)
+        
+        # 获取地形影响
+        terrain_system = world_state.get('terrain_system') if world_state else None
+        if terrain_system:
+            terrain_effects = terrain_system.get_terrain_effects_at_position(self.position)
+            movement_speed_modifier = terrain_effects.get('movement_speed', 1.0)
+            energy_cost_modifier = terrain_effects.get('energy_cost', 1.0)
+        else:
+            movement_speed_modifier = 1.0
+            energy_cost_modifier = 1.0
+        
+        # 应用地形影响到速度
+        actual_speed = base_speed * movement_speed_modifier
         
         # 更新速度
         old_position = Vector2D(self.position.x, self.position.y)
-        self.velocity = direction * speed
+        self.velocity = direction * actual_speed
         
         # 计算移动距离
         distance_moved = old_position.distance_to(self.position)
         self.total_distance_traveled += distance_moved
         
-        # 移动消耗能量
-        energy_cost = distance_moved * 0.1
-        self.energy = max(0, self.energy - energy_cost)
+        # 移动消耗能量（地形影响）
+        base_energy_cost = distance_moved * 0.1
+        actual_energy_cost = base_energy_cost * energy_cost_modifier
+        self.energy = max(0, self.energy - actual_energy_cost)
         
-        return True, 0.1  # 移动成功的小奖励
+        # 根据地形效果调整奖励
+        terrain_reward_modifier = 1.0 / max(0.5, energy_cost_modifier)  # 低成本地形奖励更高
+        reward = 0.1 * terrain_reward_modifier
+        
+        return True, reward
     
-    def _execute_eat(self, action: Action, nearby_resources: List) -> Tuple[bool, float]:
-        """执行进食"""
+    def _execute_eat(self, action: Action, nearby_resources: List, world_state: Dict = None) -> Tuple[bool, float]:
+        """执行进食（包含地形影响）"""
         if not nearby_resources or action.target is None:
             return False, -0.2
         
@@ -304,23 +409,49 @@ class SimpleAgent(PhysicsObject):
                 break
         
         if target_resource and target_resource.amount > 0:
-            # 消耗资源
-            consumed = target_resource.consume(min(20, target_resource.amount))
+            # 获取地形影响
+            terrain_system = world_state.get('terrain_system') if world_state else None
+            if terrain_system:
+                terrain_effects = terrain_system.get_terrain_effects_at_position(self.position)
+                resource_availability = terrain_effects.get('resource_availability', 1.0)
+                shelter_value = terrain_effects.get('shelter_value', 1.0)
+                
+                # 获取地形对特定资源类型的修正
+                x, y = int(self.position.x), int(self.position.y)
+                resource_modifiers = terrain_system.get_resource_modifier(x, y)
+                resource_type_modifier = resource_modifiers.get(target_resource.type, 1.0)
+            else:
+                resource_availability = 1.0
+                shelter_value = 1.0
+                resource_type_modifier = 1.0
             
-            # 恢复能量
-            energy_gain = consumed * 0.8
-            self.energy = min(self.max_energy, self.energy + energy_gain)
+            # 消耗资源
+            base_consumed = min(20, target_resource.amount)
+            # 地形影响资源获取效率
+            actual_consumed = base_consumed * resource_availability * resource_type_modifier
+            consumed = target_resource.consume(actual_consumed)
+            
+            # 恢复能量（地形影响）
+            base_energy_gain = consumed * 0.8
+            # 地形肥沃度影响能量转换效率
+            fertility_bonus = shelter_value * 0.5
+            final_energy_gain = base_energy_gain * (1 + fertility_bonus)
+            
+            self.energy = min(self.max_energy, self.energy + final_energy_gain)
             self.resources_consumed += consumed
             
-            # 存储空间记忆
+            # 存储空间记忆（地形影响记忆价值）
+            terrain_memory_modifier = 1.0 + (resource_type_modifier - 1.0) * 0.5
+            memory_value = (final_energy_gain / 20) * terrain_memory_modifier
+            
             self.memory.store_spatial_memory(
                 (target_resource.position.x, target_resource.position.y),
                 f"good_resource_{target_resource.type}",
-                energy_gain / 20,  # 标准化价值
+                memory_value,
                 self.age
             )
             
-            return True, energy_gain / 20  # 根据能量增益给奖励
+            return True, final_energy_gain / 20  # 根据实际能量增益给奖励
         
         return False, -0.2
     
@@ -335,17 +466,41 @@ class SimpleAgent(PhysicsObject):
         
         return True, 0.1
     
-    def _execute_communicate(self, action: Action, nearby_agents: List) -> Tuple[bool, float]:
-        """执行交流"""
+    def _execute_communicate(self, action: Action, nearby_agents: List, world_state: Dict = None) -> Tuple[bool, float]:
+        """执行交流（包含地形影响）"""
         if action.target_agent is None or action.target_agent not in nearby_agents:
             return False, -0.1
+        
+        # 检查通信范围
+        distance = self.position.distance_to(
+            Vector2D(action.target_agent.position.x, action.target_agent.position.y)
+        )
+        if distance > self.communication_radius:
+            return False, -0.1
+        
+        # 计算地形通信阻碍
+        terrain_system = world_state.get('terrain_system') if world_state else None
+        if terrain_system:
+            agent_pos = (int(self.position.x), int(self.position.y))
+            target_pos = (int(action.target_agent.position.x), int(action.target_agent.position.y))
+            
+            communication_barrier = terrain_system.get_communication_barrier(agent_pos, target_pos)
+            # 通信成功概率基于地形阻碍
+            success_rate = max(0.1, 1.0 - communication_barrier)
+        else:
+            success_rate = 1.0
+        
+        # 检查通信是否成功
+        if np.random.random() > success_rate:
+            return False, -0.3  # 通信失败
         
         # 简单交流：交换位置信息
         message_data = {
             'sender_id': self.agent_id,
             'position': (self.position.x, self.position.y),
             'energy_level': self.energy / self.max_energy,
-            'message_type': action.data.get('message_type', 'greeting')
+            'message_type': action.data.get('message_type', 'greeting'),
+            'terrain_barrier': communication_barrier if terrain_system else 0.0
         }
         
         # 对方接收消息（简化实现）
@@ -359,7 +514,9 @@ class SimpleAgent(PhysicsObject):
             0, self.behavior_system.motivations['social'].value - 0.2
         )
         
-        return True, 0.3
+        # 成功率影响奖励
+        reward = 0.3 * success_rate
+        return True, reward
     
     def _execute_cooperate(self, action: Action, nearby_agents: List) -> Tuple[bool, float]:
         """执行合作"""
@@ -381,27 +538,50 @@ class SimpleAgent(PhysicsObject):
         return False, -0.1
     
     def _execute_reproduce(self, action: Action, nearby_agents: List) -> Tuple[bool, float]:
-        """执行繁殖"""
-        # 降低繁殖门槛，从80降低到50
+        """执行繁殖（优化后的机制）"""
+        # 提高繁殖门槛：能量要求从50提高到90
         if (action.target_agent is None or 
             action.target_agent not in nearby_agents or
-            self.energy < 50):
+            self.energy < 90):
             return False, -0.3
         
         partner = action.target_agent
         
-        # 检查伙伴是否同意繁殖（降低伙伴要求从80到50）
-        if (hasattr(partner, 'energy') and partner.energy > 50 and
+        # 检查伙伴是否同意繁殖（提高伙伴要求从50到90）
+        if (hasattr(partner, 'energy') and partner.energy > 90 and
             hasattr(partner, 'behavior_system') and
             partner.behavior_system.motivations['reproduction'].is_active()):
+            
+            # 增加年龄限制：只有成年智能体才能繁殖
+            if self.age < 50 or getattr(partner, 'age', 0) < 50:
+                return False, -0.2  # 年龄不够
+            
+            # 增加繁殖冷却时间：防止过度繁殖
+            if hasattr(self, 'last_reproduction_time'):
+                if self.age - self.last_reproduction_time < 100:  # 100时间单位冷却
+                    return False, -0.1  # 冷却时间未到
+            
+            # 增加健康要求：只有健康的智能体才能繁殖
+            if self.health < 70 or getattr(partner, 'health', 0) < 70:
+                return False, -0.2  # 健康不足
             
             # 繁殖成功！
             self.offspring_count += 1
             
-            # 降低繁殖能量消耗，从40/30降低到25/20
-            self.energy -= 25
+            # 增加繁殖能量消耗，从25/20增加到40/35
+            self.energy -= 40
             if hasattr(partner, 'energy'):
-                partner.energy -= 20
+                partner.energy -= 35
+            
+            # 繁殖对健康有影响
+            self.health -= 5
+            if hasattr(partner, 'health'):
+                partner.health -= 3
+            
+            # 记录繁殖时间
+            self.last_reproduction_time = self.age
+            if hasattr(partner, 'age'):
+                partner.last_reproduction_time = getattr(partner, 'age', 0)
             
             # 存储繁殖记忆
             self.memory.store_experience(
@@ -411,7 +591,30 @@ class SimpleAgent(PhysicsObject):
                 timestamp=self.age
             )
             
-            return True, 1.0  # 繁殖成功高奖励
+            # 记录繁殖事件
+            log_agent_event(
+                event_type=EventType.AGENT_REPRODUCTION,
+                agent_id=self.agent_id,
+                description=f"智能体{self.agent_id}与{partner.agent_id}成功繁殖",
+                data={
+                    'parent_a_id': self.agent_id,
+                    'parent_b_id': partner.agent_id,
+                    'parent_a_age': self.age,
+                    'parent_b_age': getattr(partner, 'age', 0),
+                    'offspring_count_a': self.offspring_count,
+                    'offspring_count_b': getattr(partner, 'offspring_count', 0),
+                    'reproduction_location': (self.position.x, self.position.y),
+                    'energy_cost_a': 40,
+                    'energy_cost_b': 35,
+                    'health_cost_a': 5,
+                    'health_cost_b': 3
+                },
+                location=(self.position.x, self.position.y),
+                participants=[self.agent_id, partner.agent_id],
+                impact_score=3.0
+            )
+            
+            return True, 0.8  # 降低繁殖奖励，从1.0降低到0.8
         
         return False, -0.3
     
@@ -492,17 +695,162 @@ class SimpleAgent(PhysicsObject):
     
     def _check_health(self):
         """检查健康状态"""
-        if self.health <= 0 or self.energy <= 0:
-            self.alive = False
-            logger.info(f"Agent {self.agent_id} died at age {self.age}")
+        death_reason = None
         
-        # 老年死亡
-        if self.age > 300 and np.random.random() < 0.01:
+        if self.health <= 0:
+            death_reason = "健康耗尽"
+        elif self.energy <= 0:
+            death_reason = "能量耗尽"
+        elif self.age >= 100:  # 100岁必死
+            death_reason = "寿命耗尽"
+        elif self.age > 80 and np.random.random() < 0.02:  # 80岁后有老死概率
+            death_reason = "自然老死"
+        
+        if death_reason:
             self.alive = False
-            logger.info(f"Agent {self.agent_id} died of old age at {self.age}")
+            logger.info(f"Agent {self.agent_id} died at age {self.age}: {death_reason}")
+            
+            # 记录智能体死亡事件
+            log_agent_event(
+                event_type=EventType.AGENT_DEATH,
+                agent_id=self.agent_id,
+                description=f"智能体{self.agent_id}因{death_reason}而死亡，享年{self.age:.1f}",
+                data={
+                    'agent_id': self.agent_id,
+                    'death_reason': death_reason,
+                    'age_at_death': self.age,
+                    'final_health': self.health,
+                    'final_energy': self.energy,
+                    'generation': self.generation,
+                    'offspring_count': self.offspring_count,
+                    'total_distance_traveled': self.total_distance_traveled,
+                    'social_interactions': self.social_interactions,
+                    'death_location': (self.position.x, self.position.y)
+                },
+                location=(self.position.x, self.position.y),
+                participants=[self.agent_id],
+                impact_score=2.0
+            )
+    
+    def _check_milestones(self):
+        """检查智能体里程碑"""
+        # 首次繁殖里程碑
+        if not self.milestones['first_reproduction'] and self.offspring_count > 0:
+            self.milestones['first_reproduction'] = True
+            log_agent_event(
+                event_type=EventType.AGENT_LEARNING_MILESTONE,
+                agent_id=self.agent_id,
+                description=f"智能体{self.agent_id}达成首次繁殖里程碑",
+                data={
+                    'milestone': 'first_reproduction',
+                    'age': self.age,
+                    'offspring_count': self.offspring_count
+                },
+                location=(self.position.x, self.position.y),
+                participants=[self.agent_id],
+                impact_score=2.0
+            )
+        
+        # 探索者里程碑
+        if not self.milestones['explorer'] and self.total_distance_traveled > 100:
+            self.milestones['explorer'] = True
+            log_agent_event(
+                event_type=EventType.AGENT_LEARNING_MILESTONE,
+                agent_id=self.agent_id,
+                description=f"智能体{self.agent_id}达成探索者里程碑，总旅行距离{self.total_distance_traveled:.1f}",
+                data={
+                    'milestone': 'explorer',
+                    'age': self.age,
+                    'total_distance': self.total_distance_traveled
+                },
+                location=(self.position.x, self.position.y),
+                participants=[self.agent_id],
+                impact_score=1.5
+            )
+        
+        # 生存者里程碑
+        if not self.milestones['survivor'] and self.age > 200:
+            self.milestones['survivor'] = True
+            log_agent_event(
+                event_type=EventType.AGENT_LEARNING_MILESTONE,
+                agent_id=self.agent_id,
+                description=f"智能体{self.agent_id}达成生存者里程碑，已生存{self.age:.1f}时间单位",
+                data={
+                    'milestone': 'survivor',
+                    'age': self.age,
+                    'health': self.health,
+                    'energy': self.energy
+                },
+                location=(self.position.x, self.position.y),
+                participants=[self.agent_id],
+                impact_score=3.0
+            )
+        
+        # 社交高手里程碑
+        if not self.milestones['social_master'] and self.social_interactions > 50:
+            self.milestones['social_master'] = True
+            log_agent_event(
+                event_type=EventType.AGENT_LEARNING_MILESTONE,
+                agent_id=self.agent_id,
+                description=f"智能体{self.agent_id}达成社交高手里程碑，社交互动{self.social_interactions}次",
+                data={
+                    'milestone': 'social_master',
+                    'age': self.age,
+                    'social_interactions': self.social_interactions
+                },
+                location=(self.position.x, self.position.y),
+                participants=[self.agent_id],
+                impact_score=2.5
+            )
+        
+        # 长者里程碑
+        if not self.milestones['elder'] and self.age > 250:
+            self.milestones['elder'] = True
+            log_agent_event(
+                event_type=EventType.AGENT_LEARNING_MILESTONE,
+                agent_id=self.agent_id,
+                description=f"智能体{self.agent_id}达成长者里程碑，已生存{self.age:.1f}时间单位",
+                data={
+                    'milestone': 'elder',
+                    'age': self.age,
+                    'offspring_count': self.offspring_count,
+                    'wisdom_level': len(self.memory.long_term_memory)
+                },
+                location=(self.position.x, self.position.y),
+                participants=[self.agent_id],
+                impact_score=4.0
+            )
+    
+    def _update_technology_effects(self):
+        """更新科技水平对感知和通信能力的影响"""
+        # 基于年龄、学习经验和社交互动缓慢提升科技水平
+        learning_factor = len(self.memory.long_term_memory) / 100.0  # 基于记忆数量
+        social_factor = self.social_interactions / 50.0  # 基于社交经验
+        age_factor = min(self.age / 200.0, 1.0)  # 基于年龄经验
+        
+        # 科技水平缓慢增长，最大值为1.0
+        tech_growth = (learning_factor + social_factor + age_factor) / 3.0
+        self.technology_level = min(1.0, tech_growth)
+        
+        # 根据科技水平更新感知和通信范围
+        base_perception = 8.0
+        base_communication = 3.0
+        
+        # 科技水平影响范围：最多扩大2倍
+        tech_multiplier = 1.0 + self.technology_level
+        
+        self.perception_radius = base_perception * tech_multiplier
+        self.communication_radius = base_communication * tech_multiplier
+        
+        # 部落成员有额外的通信加成
+        if hasattr(self, 'tribe_id') and self.tribe_id:
+            self.communication_radius *= 1.5  # 部落成员通信距离增加50%
     
     def receive_message(self, message: Dict):
         """接收来自其他智能体的消息"""
+        # 更新社交统计
+        self.social_interactions += 1
+        
         # 存储社交记忆
         self.memory.store_experience(
             f"message_from_{message.get('sender_id', 'unknown')}",

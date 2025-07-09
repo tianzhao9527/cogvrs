@@ -22,19 +22,51 @@ def main():
     )
     
     try:
-        from cogvrs_core.visualization.gui import CogvrsGUI
+        # 尝试显示启动配置对话框，如果失败则使用CLI
+        print("🚀 Launching Cogvrs Configuration...")
         
-        # 优化配置 - 提高生存率和文明发展
+        user_config = None
+        try:
+            from cogvrs_core.utils.startup_dialog import show_startup_dialog
+            user_config = show_startup_dialog()
+        except ImportError as e:
+            if '_tkinter' in str(e):
+                print("ℹ️  GUI not available (tkinter missing), using command line interface...")
+                from cogvrs_core.utils.cli_config import show_cli_config
+                user_config = show_cli_config()
+            else:
+                raise e
+        except Exception as e:
+            print(f"⚠️  GUI configuration failed: {e}")
+            print("🔄 Falling back to command line interface...")
+            from cogvrs_core.utils.cli_config import show_cli_config
+            user_config = show_cli_config()
+        
+        if user_config is None:
+            print("❌ User cancelled configuration. Exiting...")
+            return
+        
+        print(f"✅ Configuration selected:")
+        print(f"   📊 Initial Agents: {user_config['initial_agents']}")
+        print(f"   🎯 Target FPS: {user_config['target_fps']}")
+        print(f"   🎨 Rendering Quality: {user_config['rendering_quality']}")
+        print(f"   🌍 World Size: {user_config['world_size']}")
+        print(f"   🌱 Resource Density: {user_config['resource_density']:.2f}")
+        
+        from cogvrs_core.visualization.optimized_gui import OptimizedCogvrsGUI
+        
+        # 根据用户配置生成最终配置
         config = {
-            'window_width': 1600,  # 增加默认窗口大小以支持更多智能体的显示
+            'window_width': 1600,
             'window_height': 1000,
-            'target_fps': 30,
-            'initial_agents': 100,  # 设置为100个初始智能体
+            'target_fps': user_config['target_fps'],
+            'initial_agents': user_config['initial_agents'],
+            'enable_multi_scale': user_config['enable_multi_scale'],
             'world': {
-                'size': (100, 100),
-                'resource_density': 0.2,  # 大幅提高资源密度
-                'max_agents': 200,  # 增加最大承载量以支持更多智能体
-                'resource_regeneration_rate': 0.8  # 新增资源再生率
+                'size': user_config['world_size'],
+                'resource_density': user_config['resource_density'],
+                'max_agents': max(user_config['initial_agents'] * 20, 1000),  # 动态设置最大数量
+                'resource_regeneration_rate': 0.8
             },
             'physics': {
                 'friction': 0.1,
@@ -43,20 +75,23 @@ def main():
             },
             'time': {
                 'dt': 0.1,
-                'target_fps': 30,
+                'target_fps': user_config['target_fps'],
                 'real_time': True
             },
-            # 新增部落配置
             'civilization': {
                 'enable_tribes': True,
-                'tribe_formation_threshold': 8,  # 8个以上智能体可形成部落
-                'tribe_communication_range': 150,  # 部落间通信范围
-                'cultural_evolution_rate': 0.1  # 文化进化速率
+                'tribe_formation_threshold': max(5, user_config['initial_agents'] // 10),  # 动态调整部落门槛
+                'tribe_communication_range': 150,
+                'cultural_evolution_rate': 0.1
             },
-            # 优化环境压力
             'environment': {
-                'reduce_climate_severity': True,  # 减少气候严酷程度
-                'stable_climate_probability': 0.7  # 70%概率保持稳定气候
+                'reduce_climate_severity': True,
+                'stable_climate_probability': 0.7
+            },
+            'rendering': {
+                'quality': user_config['rendering_quality'],
+                'skip_frames': 0 if user_config['rendering_quality'] == 'high' else 
+                              1 if user_config['rendering_quality'] == 'normal' else 2
             }
         }
         
@@ -79,8 +114,8 @@ def main():
         print("  • Reproduce and evolve")
         print("\n" + "="*50)
         
-        # 启动GUI
-        gui = CogvrsGUI(config)
+        # 启动优化GUI
+        gui = OptimizedCogvrsGUI(config)
         gui.run()
         
     except ImportError as e:

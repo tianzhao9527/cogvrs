@@ -120,3 +120,38 @@ docs/build/
 
 # 特定于项目的忽略
 # 在这里添加项目特定的文件和目录
+
+# Cogvrs项目特定文件
+events_*.json
+final_events_*.json
+cogvrs_report_*.json
+reports/*.html
+reports/*.jpg
+reports/*.png
+reports/*.gif
+
+# 调试和测试文件
+quick_*.py
+test_debug_*.py
+test_enhanced_*.py
+test_environment_*.py
+test_final_*.py
+test_mouse_*.py
+test_multi_*.py
+test_quick_*.py
+test_simple_*.py
+test_vector_*.py
+test_visual_*.py
+debug_*.py
+config_launcher.py
+
+# 保留重要测试文件
+!test_fixes.py
+
+# 临时生成的系统文件
+cogvrs_core/main_simulation.py
+cogvrs_core/civilization/warfare_system.py
+cogvrs_core/environment/disaster_system.py
+cogvrs_core/visualization/info_panels.py
+cogvrs_core/visualization/terrain_renderer.py
+cogvrs_core/visualization/tribe_formation_visualizer.py

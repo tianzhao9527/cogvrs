@@ -80,7 +80,7 @@ class World2D:
         self.config = config
         self.size = config.get('size', (100, 100))
         self.resource_density = config.get('resource_density', 0.1)
-        self.max_agents = config.get('max_agents', 200)  # 提高默认最大智能体数量
+        self.max_agents = config.get('max_agents', 10000)  # 移除200智能体限制，大幅提高上限
         
         # 初始化世界网格
         self.width, self.height = self.size
@@ -121,11 +121,15 @@ class World2D:
                     self.terrain_grid[x, y] = TerrainType.EMPTY.value
     
     def _initialize_resources(self):
-        """初始化资源分布"""
+        """初始化有限资源分布"""
         total_tiles = self.width * self.height
         num_resources = int(total_tiles * self.resource_density)
         
         resource_types = ['food', 'energy', 'material']
+        
+        # 限制总资源量以创造竞争
+        self.total_resources_capacity = num_resources * 50  # 总资源承载量
+        self.current_total_resources = 0
         
         for _ in range(num_resources):
             # 随机位置
@@ -136,18 +140,27 @@ class World2D:
             if self.terrain_grid[x, y] == TerrainType.OBSTACLE.value:
                 continue
             
-            # 创建资源
+            # 创建有限资源
             resource_type = np.random.choice(resource_types)
+            initial_amount = np.random.uniform(15, 60)  # 降低初始资源量
+            
             resource = Resource(
                 position=Vector2D(x, y),
                 type=resource_type,
-                amount=np.random.uniform(20, 100),
-                regeneration_rate=np.random.uniform(0.05, 0.2)
+                amount=initial_amount,
+                regeneration_rate=np.random.uniform(0.02, 0.08),  # 降低再生率
+                max_amount=np.random.uniform(40, 80)  # 设置最大容量
             )
             
             self.resources.append(resource)
             self.terrain_grid[x, y] = TerrainType.RESOURCE.value
             self.resource_grid[x, y] = resource.amount
+            self.current_total_resources += resource.amount
+        
+        print(f"🌍 有限资源系统初始化")
+        print(f"   资源点数: {len(self.resources)}")
+        print(f"   总资源量: {self.current_total_resources:.1f}")
+        print(f"   资源承载量: {self.total_resources_capacity:.1f}")
     
     def _initialize_environment(self):
         """初始化环境条件"""
@@ -166,12 +179,8 @@ class World2D:
     
     def update(self, dt: float):
         """更新世界状态"""
-        # 更新资源
-        for resource in self.resources:
-            resource.regenerate(dt)
-            x, y = int(resource.position.x), int(resource.position.y)
-            if 0 <= x < self.width and 0 <= y < self.height:
-                self.resource_grid[x, y] = resource.amount
+        # 更新有限资源系统
+        self._update_limited_resources(dt)
         
         # 环境变化
         self._update_environment(dt)
@@ -180,6 +189,72 @@ class World2D:
         self._apply_day_night_cycle()
         
         self.time_step += 1
+    
+    def _update_limited_resources(self, dt: float):
+        """更新有限资源系统"""
+        self.current_total_resources = 0
+        depleted_resources = []
+        
+        for i, resource in enumerate(self.resources):
+            # 资源再生受总承载量限制
+            if self.current_total_resources < self.total_resources_capacity:
+                resource.regenerate(dt)
+            
+            # 更新网格
+            x, y = int(resource.position.x), int(resource.position.y)
+            if 0 <= x < self.width and 0 <= y < self.height:
+                self.resource_grid[x, y] = resource.amount
+            
+            # 标记枯竭的资源
+            if resource.amount <= 0.1:
+                depleted_resources.append(i)
+            
+            self.current_total_resources += resource.amount
+        
+        # 移除枯竭的资源点
+        for i in reversed(depleted_resources):
+            depleted_resource = self.resources.pop(i)
+            x, y = int(depleted_resource.position.x), int(depleted_resource.position.y)
+            if 0 <= x < self.width and 0 <= y < self.height:
+                self.terrain_grid[x, y] = TerrainType.EMPTY.value
+                self.resource_grid[x, y] = 0
+            print(f"🏜️ 资源点枯竭: ({x}, {y}) - {depleted_resource.type}")
+        
+        # 定期检查是否需要生成新资源点
+        if self.time_step % 1000 == 0 and len(self.resources) < self.width * self.height * self.resource_density * 0.8:
+            self._try_generate_new_resource()
+    
+    def _try_generate_new_resource(self):
+        """尝试生成新资源点"""
+        # 在人口压力大的区域降低新资源生成概率
+        generation_probability = max(0.1, 1.0 - self.current_total_resources / self.total_resources_capacity)
+        
+        if np.random.random() < generation_probability:
+            # 寻找空闲位置
+            attempts = 20
+            for _ in range(attempts):
+                x = np.random.randint(0, self.width)
+                y = np.random.randint(0, self.height)
+                
+                if self.terrain_grid[x, y] == TerrainType.EMPTY.value:
+                    # 生成新资源
+                    resource_types = ['food', 'energy', 'material']
+                    resource_type = np.random.choice(resource_types)
+                    
+                    new_resource = Resource(
+                        position=Vector2D(x, y),
+                        type=resource_type,
+                        amount=np.random.uniform(20, 50),
+                        regeneration_rate=np.random.uniform(0.02, 0.06),
+                        max_amount=np.random.uniform(30, 70)
+                    )
+                    
+                    self.resources.append(new_resource)
+                    self.terrain_grid[x, y] = TerrainType.RESOURCE.value
+                    self.resource_grid[x, y] = new_resource.amount
+                    
+                    print(f"🌱 新资源点生成: ({x}, {y}) - {resource_type}")
+                    break
     
     def _update_environment(self, dt: float):
         """更新环境条件"""
